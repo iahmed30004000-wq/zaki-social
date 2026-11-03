@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\ZakiSocial.Core\ZakiSocial.Core.csproj" />
+  </ItemGroup>
+</Project>

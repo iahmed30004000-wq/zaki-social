@@ -1,0 +1,76 @@
+# للسيرفر (كوليفاي): بيسحب الصور الجاهزة اللي بناها جيت هاب، ما بيبني شي على السيرفر.
+# القيمتين POSTGRES_PASSWORD و MINIO_ROOT_PASSWORD إلزاميتين (بتتحط بكوليفاي، مش بالملف).
+# كوليفاي بيعطي النطاق للخدمة caddy على المنفذ 80 وبيتولى HTTPS لحاله.
+name: zaki-social
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zaki
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ضع كلمة سر قاعدة البيانات}
+      POSTGRES_DB: zaki_social
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zaki -d zaki_social"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-zaki_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?ضع كلمة سر التخزين}
+    volumes:
+      - miniodata:/data
+
+  backend:
+    image: ghcr.io/iahmed30004000-wq/zaki-social-backend:main
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=zaki_social;Username=zaki;Password=${POSTGRES_PASSWORD};Timeout=3;Command Timeout=3
+      Redis__ConnectionString: redis:6379
+
+  frontend:
+    image: ghcr.io/iahmed30004000-wq/zaki-social-frontend:main
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    expose:
+      - "80"
+    volumes:
+      - ./docker/caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
