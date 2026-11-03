@@ -1,0 +1,157 @@
+# بيبني صورتي الخادم الخلفي والواجهة على أجهزة جيت هاب (مش على السيرفر)، وبيجرّبهم فعلياً،
+# وبس على الفرع الرئيسي بينشرهم بجيت هاب GHCR وبيبلّغ كوليفاي ينزّل الجديد.
+# على طلب الدمج: بيبني ويجرّب ولا بينشر شي. اسم المهمة "image" هو الفحص الإلزامي للدمج التلقائي.
+name: Image
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    # قاعدة بيانات وريديس حقيقيين للتجربة، بيننحذفوا بآخر المهمة.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: smoke
+          POSTGRES_PASSWORD: smoke-test-password-not-used-anywhere
+          POSTGRES_DB: smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U smoke -d smoke"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: أسماء الصور
+        id: image
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "backend=ghcr.io/$owner/zaki-social-backend" >> "$GITHUB_OUTPUT"
+          echo "frontend=ghcr.io/$owner/zaki-social-frontend" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-$(echo "${{ github.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: بناء الخادم الخلفي
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          load: true
+          push: false
+          tags: zaki-backend:smoke
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: بناء الواجهة
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          load: true
+          push: false
+          tags: zaki-frontend:smoke
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+      - name: تشغيل الاثنين والتأكد إنهم سليمين
+        run: |
+          set -eu
+          docker run -d --name backend --network host \
+            -e 'ConnectionStrings__Postgres=Host=127.0.0.1;Port=5432;Database=smoke;Username=smoke;Password=smoke-test-password-not-used-anywhere;Timeout=3;Command Timeout=3' \
+            -e 'Redis__ConnectionString=127.0.0.1:6379' \
+            -e 'ASPNETCORE_URLS=http://+:8080' \
+            zaki-backend:smoke
+          docker run -d --name frontend --network host zaki-frontend:smoke
+
+          wait_healthy() {
+            status=starting
+            for _ in $(seq 1 30); do
+              status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$1" 2>/dev/null || echo gone)
+              [ "$status" = healthy ] && return 0
+              [ "$status" = gone ] && break
+              sleep 5
+            done
+            echo "::error::$1 is not healthy (status: $status)"
+            docker logs "$1" 2>&1 | tail -60 || true
+            return 1
+          }
+          wait_healthy backend
+          wait_healthy frontend
+
+          body=$(curl -fsS http://127.0.0.1:8080/api/health)
+          echo "$body"
+          echo "$body" | grep -q '"database":"ok"' || { echo "::error::database is not ok"; exit 1; }
+          echo "$body" | grep -q '"redis":"ok"' || { echo "::error::redis is not ok"; exit 1; }
+
+          page=$(curl -fsS http://127.0.0.1:3000/)
+          echo "$page" | grep -q 'dir="rtl"' || { echo "::error::landing page is not RTL"; exit 1; }
+
+      - name: إيقاف الحاويات
+        if: always()
+        run: docker rm -f backend frontend 2>/dev/null || true
+
+      # من هون وتحت: بس على الفرع الرئيسي.
+      - uses: docker/login-action@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # بننشر نفس الصورة اللي جرّبناها (مش بناء ثاني).
+      - name: نشر الصورتين
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -eu
+          for pair in "backend:${{ steps.image.outputs.backend }}" "frontend:${{ steps.image.outputs.frontend }}"; do
+            local_name=${pair%%:*}
+            target=${pair#*:}
+            docker tag "zaki-$local_name:smoke" "$target:${{ steps.image.outputs.tag }}"
+            docker tag "zaki-$local_name:smoke" "$target:main"
+            docker push "$target:${{ steps.image.outputs.tag }}"
+            docker push "$target:main"
+          done
+
+      # يبلّغ كوليفاي. بيتخطى بصمت لحد ما يتحط السرّين بإعدادات المستودع.
+      - name: إبلاغ كوليفاي
+        if: github.ref == 'refs/heads/main'
+        env:
+          COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          set -eu
+          if [ -z "${COOLIFY_WEBHOOK_URL:-}" ] || [ -z "${COOLIFY_TOKEN:-}" ]; then
+            echo "COOLIFY_WEBHOOK_URL / COOLIFY_TOKEN غير موجودين - كوليفاي ما انبلّغ."
+            exit 0
+          fi
+          curl -fsS --max-time 30 -X POST \
+            -H "Authorization: Bearer $COOLIFY_TOKEN" \
+            "$COOLIFY_WEBHOOK_URL" > /dev/null
+          echo "كوليفاي انبلّغ ينزّل ${{ steps.image.outputs.tag }}"

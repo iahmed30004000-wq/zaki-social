@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\ZakiSocial.Core\ZakiSocial.Core.csproj" />
+    <ProjectReference Include="..\ZakiSocial.Data\ZakiSocial.Data.csproj" />
+    <ProjectReference Include="..\ZakiSocial.Integrations\ZakiSocial.Integrations.csproj" />
+    <ProjectReference Include="..\ZakiSocial.Infrastructure\ZakiSocial.Infrastructure.csproj" />
+    <ProjectReference Include="..\ZakiSocial.Workers\ZakiSocial.Workers.csproj" />
+  </ItemGroup>
+</Project>
