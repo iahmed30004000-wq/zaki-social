@@ -31,7 +31,7 @@ public sealed class FacebookConnector(HttpClient http, IOptions<FacebookOptions>
         $"{Opt.DialogBase}?client_id={Uri.EscapeDataString(Opt.AppId)}&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
         $"&state={Uri.EscapeDataString(state)}&scope={Uri.EscapeDataString(Opt.Scopes)}&response_type=code";
 
-    public async Task<IReadOnlyList<ConnectedAccount>> ConnectAsync(string code, string redirectUri, CancellationToken ct)
+    public async Task<IReadOnlyList<ConnectedAccount>> ConnectAsync(string code, string redirectUri, string state, CancellationToken ct)
     {
         var shortToken = await TokenAsync(new()
         {

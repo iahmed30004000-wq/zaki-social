@@ -61,6 +61,14 @@ services:
       App__PublicUrl: ${APP_PUBLIC_URL:-https://social.zakiai.io}
       Facebook__AppId: ${FACEBOOK_APP_ID:-}
       Facebook__AppSecret: ${FACEBOOK_APP_SECRET:-}
+      TikTok__ClientKey: ${TIKTOK_CLIENT_KEY:-}
+      TikTok__ClientSecret: ${TIKTOK_CLIENT_SECRET:-}
+      X__ClientId: ${X_CLIENT_ID:-}
+      X__ClientSecret: ${X_CLIENT_SECRET:-}
+      YouTube__ClientId: ${YOUTUBE_CLIENT_ID:-}
+      YouTube__ClientSecret: ${YOUTUBE_CLIENT_SECRET:-}
+      LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
+      LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
       Ai__Claude__ApiKey: ${ANTHROPIC_API_KEY:-}
       Ai__Claude__Model: ${CLAUDE_MODEL:-claude-sonnet-5-5}
       Ai__OpenAi__ApiKey: ${OPENAI_API_KEY:-}

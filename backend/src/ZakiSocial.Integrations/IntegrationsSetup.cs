@@ -4,12 +4,19 @@ using ZakiSocial.Core.Ai;
 using ZakiSocial.Core.Integrations;
 using ZakiSocial.Integrations.Ai;
 using ZakiSocial.Integrations.Facebook;
+using ZakiSocial.Integrations.Instagram;
+using ZakiSocial.Integrations.LinkedIn;
+using ZakiSocial.Integrations.TikTok;
+using ZakiSocial.Integrations.X;
+using ZakiSocial.Integrations.YouTube;
 
 namespace ZakiSocial.Integrations;
 
 public sealed class ConnectorRegistry(IEnumerable<IPlatformConnector> connectors) : IConnectorRegistry
 {
     private readonly Dictionary<string, IPlatformConnector> _byPlatform = connectors.ToDictionary(c => c.Platform);
+
+    public IReadOnlyList<IPlatformConnector> All => _byPlatform.Values.ToList();
 
     public IPlatformConnector Get(string platform) =>
         _byPlatform.TryGetValue(platform, out var c)
@@ -25,6 +32,15 @@ public static class IntegrationsSetup
         services.Configure<FacebookOptions>(configuration.GetSection("Facebook"));
         services.AddHttpClient<FacebookConnector>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddTransient<IPlatformConnector>(sp => sp.GetRequiredService<FacebookConnector>());
+        AddConnector<InstagramConnector>(services, TimeSpan.FromMinutes(5));
+        services.Configure<TikTokOptions>(configuration.GetSection("TikTok"));
+        AddConnector<TikTokConnector>(services, TimeSpan.FromMinutes(10));
+        services.Configure<XOptions>(configuration.GetSection("X"));
+        AddConnector<XConnector>(services, TimeSpan.FromMinutes(5));
+        services.Configure<YouTubeOptions>(configuration.GetSection("YouTube"));
+        AddConnector<YouTubeConnector>(services, TimeSpan.FromMinutes(15));
+        services.Configure<LinkedInOptions>(configuration.GetSection("LinkedIn"));
+        AddConnector<LinkedInConnector>(services, TimeSpan.FromMinutes(5));
         services.AddTransient<IConnectorRegistry, ConnectorRegistry>();
 
         // الذكاء الاصطناعي: مفاتيح ونماذج من البيئة (Ai__Claude__ApiKey ...). إعادة محاولة وحد زمني بـ Polly.
@@ -36,6 +52,12 @@ public static class IntegrationsSetup
         AddAiClient<OpenAiProvider>(services);
         AddAiClient<LocalLlmProvider>(services);
         return services;
+    }
+
+    private static void AddConnector<T>(IServiceCollection services, TimeSpan timeout) where T : class, IPlatformConnector
+    {
+        services.AddHttpClient<T>(c => c.Timeout = timeout);
+        services.AddTransient<IPlatformConnector>(sp => sp.GetRequiredService<T>());
     }
 
     private static void AddAiClient<T>(IServiceCollection services) where T : class, IAiProvider

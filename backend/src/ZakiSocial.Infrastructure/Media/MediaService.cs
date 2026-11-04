@@ -107,6 +107,15 @@ public sealed class MediaService(AppDbContext db, ITenantContext tenant, IMediaS
         return (await storage.OpenReadAsync(key, ct), type);
     }
 
+    /// <summary>للرابط العام الموقّع (منصات بتسحب الملف): النسخة الجاهزة فقط.</summary>
+    public async Task<(Stream Stream, string ContentType)> OpenPublicAsync(Guid workspaceId, Guid id, CancellationToken ct)
+    {
+        tenant.UseWorkspace(workspaceId, "public");
+        var asset = await FindAsync(id, ct);
+        if (asset.Status != "ready" || asset.ProcessedKey is null || (asset.AiGenerated && asset.ApprovedAt is null)) throw new AuthException(404, "not_found");
+        return (await storage.OpenReadAsync(asset.ProcessedKey, ct), asset.Kind == "video" ? "video/mp4" : "image/jpeg");
+    }
+
     private async Task<MediaAsset> FindAsync(Guid id, CancellationToken ct) =>
         await db.MediaAssets.FirstOrDefaultAsync(m => m.Id == id && m.WorkspaceId == Workspace, ct) ?? throw new AuthException(404, "not_found");
 

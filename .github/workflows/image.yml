@@ -137,6 +137,10 @@ jobs:
             -e 'Ai__OpenAi__ApiKey=ci-openai-key' -e 'Ai__OpenAi__Model=gpt-ci' -e 'Ai__OpenAi__ImageModel=img-ci' -e 'Ai__OpenAi__BaseUrl=http://127.0.0.1:9090/openai' \
             -e 'Ai__Local__Model=local-ci' -e 'Ai__Local__BaseUrl=http://127.0.0.1:9090/local' \
             -e 'Ai__MonthlyTokenLimit=2000' \
+            -e 'TikTok__ClientKey=ci-tt-key' -e 'TikTok__ClientSecret=ci-tt-secret' -e 'TikTok__AuthBase=https://tiktok.test/authorize/' -e 'TikTok__ApiBase=http://127.0.0.1:9090/tiktok' \
+            -e 'X__ClientId=ci-x-id' -e 'X__ClientSecret=ci-x-secret' -e 'X__AuthBase=https://x.test/authorize' -e 'X__ApiBase=http://127.0.0.1:9090/x' \
+            -e 'YouTube__ClientId=ci-yt-id' -e 'YouTube__ClientSecret=ci-yt-secret' -e 'YouTube__AuthBase=https://google.test/auth' -e 'YouTube__TokenUrl=http://127.0.0.1:9090/google/token' -e 'YouTube__ApiBase=http://127.0.0.1:9090/yt' \
+            -e 'LinkedIn__ClientId=ci-li-id' -e 'LinkedIn__ClientSecret=ci-li-secret' -e 'LinkedIn__AuthBase=https://linkedin.test/auth' -e 'LinkedIn__TokenUrl=http://127.0.0.1:9090/li/oauth/v2/accessToken' -e 'LinkedIn__ApiBase=http://127.0.0.1:9090/li' \
             -e 'Facebook__AppId=ci-app-id' \
             -e 'Facebook__AppSecret=ci-app-secret' \
             -e 'Facebook__GraphBase=http://127.0.0.1:9090' \
@@ -185,6 +189,9 @@ jobs:
 
       - name: توليد الصور بالذكاء الاصطناعي والاعتماد البشري
         run: bash scripts/ci-image-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
+
+      - name: بقية المنصات (إنستغرام، تيك توك، إكس، يوتيوب، لينكدإن)
+        run: bash scripts/ci-platforms-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 
       - name: ربط فيسبوك وتشفير التوكنات (مع خادم تجريبي)
         env:

@@ -15,6 +15,9 @@ public static class AccountEndpoints
         g.MapGet("", async (AccountService svc, CancellationToken ct) => Results.Ok(await svc.ListAsync(ct)))
             .RequireAuthorization(AuthPolicies.Member);
 
+        g.MapGet("/platforms", (AccountService svc) => Results.Ok(svc.Platforms().Select(p => new { platform = p.Platform, configured = p.Configured })))
+            .RequireAuthorization(AuthPolicies.Member);
+
         g.MapDelete("/{id:guid}", async (Guid id, AccountService svc, CancellationToken ct) =>
         {
             await svc.DisconnectAsync(id, ct);
@@ -44,7 +47,7 @@ public static class AccountEndpoints
 
             try
             {
-                var count = await svc.ConnectAsync(platform, code, RedirectUri(cfg, platform), ct);
+                var count = await svc.ConnectAsync(platform, code, RedirectUri(cfg, platform), state!, ct);
                 return Results.Redirect($"{back}?connected={count}");
             }
             catch (PlatformException)
