@@ -9,7 +9,7 @@ export default function Home() {
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-4 py-12">
       <header className="space-y-3">
         <p className="text-sm font-medium text-primary">قيد البناء</p>
-        <h1 className="text-3xl font-bold leading-tight sm:text-4xl">منصة زكي للسوشال ميديا</h1>
+        <h1 className="text-3xl font-bold leading-tight sm:text-4xl">صانع الترند</h1>
         <p className="text-lg text-muted-foreground">
           كل حساباتك بمكان واحد، والذكاء الاصطناعي بيكتب ويجدول ويرد ويحلل معك.
         </p>

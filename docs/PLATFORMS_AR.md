@@ -2,8 +2,8 @@
 
 أنا (الوكيل) بنيت كل الموصّلات ومجرّبة على خادم تجريبي. عشان تشتغل على حساباتك الحقيقية لازم تفتح تطبيق مطوّر عند كل منصة، وتحط المفاتيح بكوليفاي (تكتبها إنت، ما بنكتبها بأي ملف).
 
-**عنوان الرجعة (Redirect URI) لكل منصة:** `https://social.zakiai.io/api/accounts/<المنصة>/callback`
-مثلاً: `https://social.zakiai.io/api/accounts/facebook/callback` (المنصات: facebook, instagram, tiktok, x, youtube, linkedin).
+**عنوان الرجعة (Redirect URI) لكل منصة:** `https://trend.zakiai.io/api/accounts/<المنصة>/callback`
+مثلاً: `https://trend.zakiai.io/api/accounts/facebook/callback` (المنصات: facebook, instagram, tiktok, x, youtube, linkedin).
 
 **المتغيرات بكوليفاي** (التطبيق ← Environment Variables): بتكتب القيمة بدون مسافات، وبعدها Redeploy.
 

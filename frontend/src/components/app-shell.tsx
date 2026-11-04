@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="shrink-0 border-b border-border bg-card md:w-64 md:border-b-0 md:border-s">
         <div className="space-y-3 p-4">
-          <p className="text-lg font-bold">منصة زكي</p>
+          <p className="text-lg font-bold">صانع الترند</p>
           <label className="block space-y-1 text-xs text-muted-foreground">
             <span>المساحة</span>
             <select

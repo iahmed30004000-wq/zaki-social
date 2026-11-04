@@ -43,7 +43,7 @@ export function AuthForm({ mode, invite = "", inviteEmail = "" }: Props) {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4 py-12">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">{isRegister ? (invite ? "قبول الدعوة" : "إنشاء حساب") : "تسجيل الدخول"}</h1>
-        <p className="text-sm text-muted-foreground">منصة زكي للسوشال ميديا</p>
+        <p className="text-sm text-muted-foreground">صانع الترند</p>
       </header>
 
       <form onSubmit={submit} className="space-y-4 rounded-xl border border-border bg-card p-5">

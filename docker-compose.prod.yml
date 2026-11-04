@@ -59,7 +59,7 @@ services:
       Security__AuditEndpoints: "true"
       Jwt__Key: ${SERVICE_PASSWORD_64_JWT}
       Encryption__Key: ${SERVICE_PASSWORD_64_ENC}
-      App__PublicUrl: ${APP_PUBLIC_URL:-https://social.zakiai.io}
+      App__PublicUrl: ${APP_PUBLIC_URL:-https://trend.zakiai.io}
       Facebook__AppId: ${FACEBOOK_APP_ID:-}
       Facebook__AppSecret: ${FACEBOOK_APP_SECRET:-}
       TikTok__ClientKey: ${TIKTOK_CLIENT_KEY:-}

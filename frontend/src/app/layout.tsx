@@ -3,7 +3,7 @@ import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "منصة زكي للسوشال ميديا",
+  title: "صانع الترند",
   description: "إدارة كل حسابات السوشال ميديا من مكان واحد بمساعدة الذكاء الاصطناعي",
 };
 
