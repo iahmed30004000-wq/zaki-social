@@ -58,6 +58,19 @@ jobs:
           echo "frontend=ghcr.io/$owner/zaki-social-frontend" >> "$GITHUB_OUTPUT"
           echo "tag=sha-$(echo "${{ github.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # لو حدا غيّر الجداول بالكود بدون هجرة جديدة، الفحص بيفشل.
+      - name: الجداول بالكود متطابقة مع ملفات الهجرة؟
+        working-directory: backend
+        run: |
+          set -eu
+          dotnet tool install --global dotnet-ef --version 8.0.10
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations has-pending-model-changes             --project src/ZakiSocial.Data --startup-project src/ZakiSocial.Api
+
       - uses: docker/setup-buildx-action@v3
 
       # كل الصور الخارجية اللي بتحتاجها ملفات الدوكر لازم تكون موجودة وقابلة للسحب (صورة minio الرسمية انسحبت مرة).
@@ -104,6 +117,7 @@ jobs:
           docker run -d --name backend --network host \
             -e 'ConnectionStrings__Postgres=Host=127.0.0.1;Port=5432;Database=smoke;Username=smoke;Password=smoke-test-password-not-used-anywhere;Timeout=3;Command Timeout=3' \
             -e 'Redis__ConnectionString=127.0.0.1:6379' \
+            -e 'Database__AutoMigrate=true' \
             -e 'ASPNETCORE_URLS=http://+:8080' \
             zaki-backend:smoke
           docker run -d --name frontend --network host zaki-frontend:smoke
@@ -130,6 +144,47 @@ jobs:
 
           page=$(curl -fsS http://127.0.0.1:3000/)
           echo "$page" | grep -q 'dir="rtl"' || { echo "::error::landing page is not RTL"; exit 1; }
+
+      - name: الجداول وعزل المساحات (على قاعدة حقيقية)
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: smoke
+          PGPASSWORD: smoke-test-password-not-used-anywhere
+          PGDATABASE: smoke
+        run: |
+          set -eu
+          q() { psql -q -v ON_ERROR_STOP=1 -tA "$@"; }
+          fail() { echo "::error::$1"; exit 1; }
+
+          tables=$(q -c "select count(*) from information_schema.tables where table_schema='public' and table_name in ('workspaces','users','memberships','social_accounts','posts','post_targets','media_assets','prompts','prompt_versions','analytics_snapshots','proxies','responder_rules','collected_data','app_logs','settings')")
+          [ "$tables" = 15 ] || fail "expected 15 tables, found $tables"
+
+          rls=$(q -c "select count(*) from pg_tables where schemaname='public' and rowsecurity and tablename <> '__EFMigrationsHistory'")
+          [ "$rls" = 14 ] || fail "expected row level security on 14 tables, found $rls"
+
+          tok=$(q -c "select count(*) from information_schema.columns where table_name='social_accounts' and column_name in ('enc_access_token','enc_refresh_token') and data_type='bytea'")
+          [ "$tok" = 2 ] || fail "token columns must be bytea"
+
+          A=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+          B=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+          q -c "insert into workspaces(id,name) values ('$A','A'),('$B','B'); insert into posts(workspace_id,body) values ('$A','post a'),('$B','post b');"
+
+          as_app() {
+            printf "begin;\nset local role zaki_app;\nselect set_config('app.workspace_id','%s',true) is not null;\n%s;\ncommit;\n" "$1" "$2" | psql -q -v ON_ERROR_STOP=1 -tA
+          }
+
+          [ "$(as_app "$A" "select body from posts" | tail -1)" = "post a" ] || fail "workspace A must see only its own post"
+          [ "$(as_app "$B" "select body from posts" | tail -1)" = "post b" ] || fail "workspace B must see only its own post"
+          [ "$(as_app "" "select count(*) from posts" | tail -1)" = 0 ] || fail "no workspace set must see nothing"
+          if as_app "$A" "insert into posts(workspace_id,body) values ('$B','sneaky')" > /dev/null 2>&1; then
+            fail "workspace A must not write into workspace B"
+          fi
+          if as_app "$A" "select password_hash from users" > /dev/null 2>&1; then
+            fail "app role must not read password_hash"
+          fi
+
+          q -c "delete from workspaces where id in ('$A','$B')"
+          echo "tables ok, row level security ok"
 
       - name: إيقاف الحاويات
         if: always()
