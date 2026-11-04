@@ -43,6 +43,10 @@ public static class PromptEndpoints
             Results.Ok(await svc.TestAsync(id, r.Variables, ct)))
             .RequireAuthorization(AuthPolicies.Editor);
 
+        // اقتراح أفضل وقت نشر من أداء المنشورات السابقة
+        app.MapGet("/api/schedule/best-time", async (string? timezone, ZakiSocial.Infrastructure.Posts.ScheduleService svc, CancellationToken ct) =>
+            Results.Ok(await svc.BestTimeAsync(timezone, ct))).RequireAuthorization(AuthPolicies.Editor);
+
         // الاستعمال الفعلي بالاسم (المؤلّف: «توليد بالذكاء الاصطناعي»)
         g.MapPost("/by-name/{name}/generate", async (string name, VariablesRequest r, PromptService svc, CancellationToken ct) =>
             Results.Ok(await svc.RunByNameAsync(name, r.Variables, ct)))

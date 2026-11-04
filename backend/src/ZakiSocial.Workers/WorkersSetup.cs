@@ -33,9 +33,13 @@ public static class WorkersSetup
             .UseRedisStorage(redis, new RedisStorageOptions { Prefix = "hangfire:zaki:" }));
 
         if (configuration.GetValue("Workers:Enabled", true))
+        {
+            services.AddHostedService<RecurringJobsRegistrar>();
             services.AddHangfireServer(o => o.WorkerCount = configuration.GetValue("Workers:Concurrency", 4));
+        }
 
         services.AddScoped<PublishJob>();
+        services.AddScoped<SchedulerJob>();
         services.AddSingleton<IJobQueue, HangfireJobQueue>();
         return services;
     }

@@ -26,6 +26,11 @@ public sealed class PublishJob(
 {
     public const string WorkerRole = "worker";
 
+    // سقف النشر المتزامن بالعملية (حماية من حدود المنصات): Workers:MaxConcurrentPublishes
+    private static SemaphoreSlim? _gate;
+    private static readonly object GateLock = new();
+    private SemaphoreSlim Gate { get { lock (GateLock) { return _gate ??= new SemaphoreSlim(configuration.GetValue("Workers:MaxConcurrentPublishes", 3)); } } }
+
     [AutomaticRetry(Attempts = 0)]
     public async Task RunAsync(Guid workspaceId, Guid targetId, int attempt, CancellationToken ct)
     {
@@ -45,7 +50,10 @@ public sealed class PublishJob(
             if (account?.EncAccessToken is null) throw new PlatformException(account?.Platform ?? "unknown", 409, "account_not_connected");
             var credentials = new AccountCredentials(account.Id, account.RemoteUserId, crypto.Decrypt(account.EncAccessToken),
                 account.EncRefreshToken is null ? null : crypto.Decrypt(account.EncRefreshToken));
-            var result = await connectors.Get(account.Platform).PublishAsync(credentials, new PostContent(post.Body, []), ct);
+            PublishResult result;
+            await Gate.WaitAsync(ct);
+            try { result = await connectors.Get(account.Platform).PublishAsync(credentials, new PostContent(post.Body, []), ct); }
+            finally { Gate.Release(); }
 
             target.Status = "published";
             target.RemotePostId = result.RemoteId;

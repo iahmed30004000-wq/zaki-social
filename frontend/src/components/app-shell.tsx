@@ -13,7 +13,7 @@ export const modules = [
   { href: "/app", label: "الرئيسية", ready: true },
   { href: "/app/accounts", label: "إدارة الحسابات", ready: true },
   { href: "/app/composer", label: "المُؤلِّف", ready: true },
-  { href: "/app/calendar", label: "التقويم", step: 8 },
+  { href: "/app/calendar", label: "التقويم", ready: true },
   { href: "/app/prompts", label: "مركز البرومبتات", ready: true },
   { href: "/app/automations", label: "الأتمتة", step: 13 },
   { href: "/app/analytics", label: "التحليلات", step: 14 },

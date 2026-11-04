@@ -14,6 +14,7 @@ RUN dotnet publish src/ZakiSocial.Api/ZakiSocial.Api.csproj -c Release -o /out -
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
 LABEL org.opencontainers.image.source="https://github.com/iahmed30004000-wq/zaki-social"
 WORKDIR /app
+RUN apk add --no-cache tzdata
 ENV ASPNETCORE_URLS=http://+:8080 \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
 COPY --from=build /out ./
