@@ -417,6 +417,14 @@ namespace ZakiSocial.Data.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("ai_generated");
 
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
                     b.Property<string>("Body")
                         .IsRequired()
                         .HasColumnType("text")
@@ -563,6 +571,13 @@ namespace ZakiSocial.Data.Migrations
                     b.Property<string>("PreferredAi")
                         .HasColumnType("text")
                         .HasColumnName("preferred_ai");
+
+                    b.Property<string>("Task")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("caption")
+                        .HasColumnName("task");
 
                     b.Property<string>("Variables")
                         .HasColumnType("jsonb")
