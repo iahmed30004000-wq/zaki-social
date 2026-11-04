@@ -149,7 +149,7 @@ public sealed class PublishJob(
             .ToArray();
 
     /// <summary>أي خطأ غير متوقع بيتسجّل بالهدف (ما بيضل عالق)، بعد إخفاء بيانات الدخول من أي عنوان.</summary>
-    private static string Sanitize(string s) => System.Text.RegularExpressions.Regex.Replace(s, "://[^/@\s]*@", "://***@");
+    private static string Sanitize(string s) => System.Text.RegularExpressions.Regex.Replace(s, @"://[^/@\s]*@", "://***@");
 
     private static string Truncate(string s) => s.Length <= 300 ? s : s[..300];
 }
