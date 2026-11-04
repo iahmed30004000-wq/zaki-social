@@ -30,7 +30,7 @@ P1=$(mkpost "منشور مجدول")
 call PUT "/api/posts/$P1/schedule" "$OWNER" "{\"when\":\"$(in_seconds 5)\"}"; expect 200 "schedule"
 [ "$(field .status)" = scheduled ] || fail "status must be scheduled"
 wait_status "$P1" "$OWNER" published 150
-call GET "/api/posts/$P1" "$OWNER"; [ "$(field .scheduledAt)" = null ] || fail "scheduledAt cleared after publishing"
+call GET "/api/posts/$P1" "$OWNER"; [ "$(field .scheduledAt)" != null ] || fail "scheduledAt stays, so the calendar keeps showing when it was published"
 
 echo "-- وقت بالماضي مرفوض"
 P2=$(mkpost "منشور ثاني")
