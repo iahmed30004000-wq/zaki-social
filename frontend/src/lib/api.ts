@@ -90,6 +90,25 @@ export async function refreshSession(): Promise<Session | null> {
   }
 }
 
+/** يرفع ملف (multipart) بحقل "file". */
+export async function uploadFile<T = unknown>(path: string, file: File): Promise<T> {
+  const form = new FormData();
+  form.append("file", file);
+  const send = () =>
+    fetch(path, { method: "POST", body: form, headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, credentials: "same-origin" });
+  let res = await send();
+  if (res.status === 401 && accessToken && (await refreshSession())) res = await send();
+  return parse<T>(res);
+}
+
+/** ينزّل ملف محمي (يحتاج توكن) كرابط مؤقت للعرض. */
+export async function fetchBlobUrl(path: string): Promise<string | null> {
+  const send = () => fetch(path, { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, credentials: "same-origin" });
+  let res = await send();
+  if (res.status === 401 && accessToken && (await refreshSession())) res = await send();
+  return res.ok ? URL.createObjectURL(await res.blob()) : null;
+}
+
 export async function authCall(path: string, body: unknown): Promise<Session> {
   const session = await parse<Session>(await send(path, { method: "POST", body }));
   setAccessToken(session.accessToken);

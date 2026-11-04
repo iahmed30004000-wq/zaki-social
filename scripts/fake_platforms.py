@@ -21,8 +21,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self):
         n = int(self.headers.get("Content-Length") or 0)
-        raw = self.rfile.read(n).decode() if n else ""
+        data = self.rfile.read(n) if n else b""
         ctype = self.headers.get("Content-Type", "")
+        if "multipart" in ctype:
+            import re
+            fields = dict(re.findall(r'name="([^"]+)"\r\n\r\n([^\r]*)\r\n', data.decode("latin1")))
+            return {"_multipart": True, "size": n, **fields}
+        raw = data.decode()
         if "json" in ctype and raw:
             return json.loads(raw)
         return {k: v[0] for k, v in urllib.parse.parse_qs(raw).items()}
@@ -86,6 +91,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"id": "reply1"})
         if method == "GET" and path.count("/") == 1:
             return self._send({"reactions": {"summary": {"total_count": 7}}, "comments": {"summary": {"total_count": 2}}, "shares": {"count": 1}})
+        if method == "POST" and path.endswith("/photos"):
+            if not token.startswith("PAGETOKEN_"):
+                return self._send({"error": {"message": "bad page token"}}, 401)
+            page = path.split("/")[1]
+            if body.get("published") == "false":
+                return self._send({"id": "unpub_%d" % len(REQUESTS)})
+            return self._send({"id": "photo_%d" % len(REQUESTS), "post_id": page + "_photo"})
+        if method == "POST" and path.endswith("/videos"):
+            if not token.startswith("PAGETOKEN_"):
+                return self._send({"error": {"message": "bad page token"}}, 401)
+            return self._send({"id": "video_%d" % len(REQUESTS)})
         # ---- الذكاء الاصطناعي ----
         if method == "POST" and path in ("/claude/v1/messages", "/openai/chat/completions", "/local/chat/completions"):
             who = path.split("/")[1]

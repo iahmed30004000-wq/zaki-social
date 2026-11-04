@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ZakiSocial.Core.Entities;
 using ZakiSocial.Core.Integrations;
 using ZakiSocial.Core.Jobs;
+using ZakiSocial.Core.Media;
 using ZakiSocial.Core.Tenancy;
 using ZakiSocial.Data;
 using ZakiSocial.Infrastructure.Security;
@@ -19,6 +20,7 @@ public sealed class PublishJob(
     AppDbContext db,
     ITenantContext tenant,
     TokenCryptor crypto,
+    IMediaStorage storage,
     IConnectorRegistry connectors,
     IJobQueue queue,
     IConfiguration configuration,
@@ -50,9 +52,23 @@ public sealed class PublishJob(
             if (account?.EncAccessToken is null) throw new PlatformException(account?.Platform ?? "unknown", 409, "account_not_connected");
             var credentials = new AccountCredentials(account.Id, account.RemoteUserId, crypto.Decrypt(account.EncAccessToken),
                 account.EncRefreshToken is null ? null : crypto.Decrypt(account.EncRefreshToken));
+            // وسائط المنشور بالترتيب (النسخة الموحّدة الجاهزة فقط؛ غير الجاهز = إعادة محاولة)
+            var mediaFiles = new List<MediaFile>();
+            var assets = await (from pm in db.PostMedia join m in db.MediaAssets on pm.MediaId equals m.Id
+                                where pm.PostId == post.Id orderby pm.SortOrder select m).ToListAsync(ct);
+            foreach (var m in assets)
+            {
+                if (m.Status != "ready" || m.ProcessedKey is null) throw new PlatformException(account.Platform, 409, "media_not_ready");
+                await using var stream = await storage.OpenReadAsync(m.ProcessedKey, ct);
+                using var buffer = new MemoryStream();
+                await stream.CopyToAsync(buffer, ct);
+                var video = m.Kind == "video";
+                mediaFiles.Add(new MediaFile(m.Kind, video ? "video/mp4" : "image/jpeg", video ? "video.mp4" : "image.jpg", buffer.ToArray()));
+            }
+
             PublishResult result;
             await Gate.WaitAsync(ct);
-            try { result = await connectors.Get(account.Platform).PublishAsync(credentials, new PostContent(post.Body, []), ct); }
+            try { result = await connectors.Get(account.Platform).PublishAsync(credentials, new PostContent(post.Body, mediaFiles), ct); }
             finally { Gate.Release(); }
 
             target.Status = "published";

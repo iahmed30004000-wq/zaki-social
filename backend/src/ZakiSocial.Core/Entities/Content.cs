@@ -46,5 +46,27 @@ public class MediaAsset : IHasId, ITenantOwned
     public string StorageKey { get; set; } = "";
     public string Kind { get; set; } = "image";
     public bool AiGenerated { get; set; }
+    /// <summary>اعتماد بشري: المرفوع من مستخدم معتمد تلقائياً، والمولّد بالذكاء الاصطناعي لازم يتعتمد قبل الاستعمال.</summary>
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public string OriginalName { get; set; } = "";
+    public string ContentType { get; set; } = "";
+    public long SizeBytes { get; set; }
+    /// <summary>processing / ready / failed</summary>
+    public string Status { get; set; } = "processing";
+    public string? Error { get; set; }
+    public string? ProcessedKey { get; set; }
+    public string? ThumbnailKey { get; set; }
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+    public double? DurationSeconds { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>ربط منشور بوسائطه بترتيب.</summary>
+public class PostMedia : ITenantOwned
+{
+    public Guid PostId { get; set; }
+    public Guid MediaId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public int SortOrder { get; set; }
 }

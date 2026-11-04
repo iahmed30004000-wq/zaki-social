@@ -5,7 +5,7 @@ using ZakiSocial.Infrastructure.Posts;
 namespace ZakiSocial.Api.Endpoints;
 
 public sealed record ScheduleRequest(DateTimeOffset When, string? Repeat);
-public sealed record PostRequest(string Body, List<Guid>? AccountIds, bool AiGenerated = false);
+public sealed record PostRequest(string Body, List<Guid>? AccountIds, bool AiGenerated = false, List<Guid>? MediaIds = null);
 
 public static class PostEndpoints
 {
@@ -20,11 +20,11 @@ public static class PostEndpoints
             .RequireAuthorization(AuthPolicies.Member);
 
         g.MapPost("", async (PostRequest r, PostService svc, ClaimsPrincipal user, CancellationToken ct) =>
-            Results.Ok(await svc.CreateAsync(r.Body, r.AccountIds ?? [], AuthEndpoints.UserId(user), r.AiGenerated, ct)))
+            Results.Ok(await svc.CreateAsync(r.Body, r.AccountIds ?? [], AuthEndpoints.UserId(user), r.AiGenerated, r.MediaIds ?? [], ct)))
             .RequireAuthorization(AuthPolicies.Editor);
 
         g.MapPut("/{id:guid}", async (Guid id, PostRequest r, PostService svc, CancellationToken ct) =>
-            Results.Ok(await svc.UpdateDraftAsync(id, r.Body, r.AccountIds ?? [], ct)))
+            Results.Ok(await svc.UpdateDraftAsync(id, r.Body, r.AccountIds ?? [], r.MediaIds ?? [], ct)))
             .RequireAuthorization(AuthPolicies.Editor);
 
         g.MapDelete("/{id:guid}", async (Guid id, PostService svc, CancellationToken ct) =>

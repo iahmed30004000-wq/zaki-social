@@ -28,6 +28,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Invitation> Invitations => Set<Invitation>();
     public DbSet<AiUsage> AiUsages => Set<AiUsage>();
+    public DbSet<PostMedia> PostMedia => Set<PostMedia>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) => ModelConfiguration.Apply(modelBuilder);
 }

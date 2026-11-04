@@ -26,6 +26,8 @@ public static class ServiceRegistration
         services.AddSingleton<RedisConnection>();
         services.AddScoped<IHealthService, HealthService>();
         services.AddScoped<ZakiSocial.Infrastructure.Posts.PostService>();
+        services.AddSingleton<ZakiSocial.Core.Media.IMediaStorage, ZakiSocial.Infrastructure.Media.S3MediaStorage>();
+        services.AddScoped<ZakiSocial.Infrastructure.Media.MediaService>();
         services.AddScoped<ZakiSocial.Infrastructure.Prompts.PromptService>();
         services.AddScoped<ZakiSocial.Infrastructure.Posts.ScheduleService>();
         services.AddScoped<ZakiSocial.Infrastructure.Ai.AiRouter>();

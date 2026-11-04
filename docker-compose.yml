@@ -51,6 +51,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_started
     environment:
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=zaki_social;Username=zaki;Password=${POSTGRES_PASSWORD:-zaki_local_dev_only};Timeout=3;Command Timeout=3
       Redis__ConnectionString: redis:6379
@@ -67,6 +69,10 @@ services:
       Ai__OpenAi__Model: ${OPENAI_MODEL:-gpt-4o}
       Ai__Local__BaseUrl: ${LOCAL_LLM_ENDPOINT:-}
       Ai__Local__Model: ${LOCAL_LLM_MODEL:-}
+      Storage__Endpoint: http://minio:9000
+      Storage__AccessKey: ${MINIO_ROOT_USER:-zaki_minio_dev}
+      Storage__SecretKey: ${MINIO_ROOT_PASSWORD:-zaki_minio_local_dev_only}
+      Storage__Bucket: zaki-media
 
   frontend:
     build: ./frontend
