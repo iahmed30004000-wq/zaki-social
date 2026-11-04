@@ -8,7 +8,7 @@ using ZakiSocial.Infrastructure.Auth;
 namespace ZakiSocial.Infrastructure.Posts;
 
 public sealed record TargetDto(Guid Id, Guid AccountId, string AccountName, string Platform, string Status, string? RemotePostId, string? Error, DateTimeOffset? PublishedAt);
-public sealed record PostDto(Guid Id, string Body, string Status, bool AiGenerated, DateTimeOffset? ApprovedAt, DateTimeOffset CreatedAt, IReadOnlyList<TargetDto> Targets);
+public sealed record PostDto(Guid Id, string Body, string Status, bool AiGenerated, DateTimeOffset? ApprovedAt, DateTimeOffset? ScheduledAt, string RepeatRule, DateTimeOffset CreatedAt, IReadOnlyList<TargetDto> Targets);
 
 /// <summary>
 /// المنشورات. حالات المنشور: draft -> publishing -> published | failed.
@@ -18,11 +18,14 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
 {
     private Guid Workspace => tenant.WorkspaceId ?? throw new AuthException(403, "no_workspace");
 
-    public async Task<IReadOnlyList<PostDto>> ListAsync(string? status, CancellationToken ct)
+    public async Task<IReadOnlyList<PostDto>> ListAsync(string? status, DateTimeOffset? from, DateTimeOffset? to, CancellationToken ct)
     {
         var query = db.Posts.Where(p => p.WorkspaceId == Workspace);
         if (!string.IsNullOrEmpty(status)) query = query.Where(p => p.Status == status);
-        var posts = await query.OrderByDescending(p => p.CreatedAt).Take(50).ToListAsync(ct);
+        // التقويم: المنشورات ضمن فترة (وقت الجدولة، وإلا وقت الإنشاء)
+        if (from is not null) query = query.Where(p => (p.ScheduledAt ?? p.CreatedAt) >= from);
+        if (to is not null) query = query.Where(p => (p.ScheduledAt ?? p.CreatedAt) < to);
+        var posts = await query.OrderByDescending(p => p.ScheduledAt ?? p.CreatedAt).Take(from is null && to is null ? 50 : 500).ToListAsync(ct);
         return await ToDtosAsync(posts, ct);
     }
 
@@ -75,17 +78,46 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
         return await GetAsync(id, ct);
     }
 
+    /// <summary>جدولة أو إعادة جدولة (سحب وإفلات بالتقويم). الوقت UTC؛ الواجهة بتحوّل من توقيت المستخدم.</summary>
+    public async Task<PostDto> ScheduleAsync(Guid id, DateTimeOffset when, string? repeat, CancellationToken ct)
+    {
+        var post = await FindAsync(id, ct);
+        if (post.Status is not (PostStatus.Draft or PostStatus.Scheduled)) throw new AuthException(409, "post_not_schedulable");
+        if (post.AiGenerated && post.ApprovedAt is null) throw new AuthException(409, "approval_required");
+        if (when < DateTimeOffset.UtcNow.AddSeconds(-5)) throw new AuthException(400, "schedule_in_past");
+        repeat = string.IsNullOrWhiteSpace(repeat) ? post.RepeatRule : repeat;
+        if (repeat is not ("none" or "daily" or "weekly")) throw new AuthException(400, "repeat_invalid");
+        if (!await db.PostTargets.AnyAsync(t => t.PostId == id, ct)) throw new AuthException(400, "no_targets");
+        post.Status = PostStatus.Scheduled;
+        post.ScheduledAt = when.ToUniversalTime();
+        post.RepeatRule = repeat;
+        await db.SaveChangesAsync(ct);
+        return await GetAsync(id, ct);
+    }
+
+    public async Task<PostDto> UnscheduleAsync(Guid id, CancellationToken ct)
+    {
+        var post = await FindAsync(id, ct);
+        if (post.Status != PostStatus.Scheduled) throw new AuthException(409, "post_not_scheduled");
+        post.Status = PostStatus.Draft;
+        post.ScheduledAt = null;
+        post.RepeatRule = "none";
+        await db.SaveChangesAsync(ct);
+        return await GetAsync(id, ct);
+    }
+
     /// <summary>ينقل المنشور لحالة النشر ويحط مهمة لكل حساب مش منشور بعد. ما بينشر بنفسه.</summary>
     public async Task<PostDto> PublishAsync(Guid id, CancellationToken ct)
     {
         var post = await FindAsync(id, ct);
-        if (post.Status is not (PostStatus.Draft or PostStatus.Failed)) throw new AuthException(409, "post_not_publishable");
+        if (post.Status is not (PostStatus.Draft or PostStatus.Failed or PostStatus.Scheduled)) throw new AuthException(409, "post_not_publishable");
         if (post.AiGenerated && post.ApprovedAt is null) throw new AuthException(409, "approval_required"); // محتوى الذكاء الاصطناعي لازم اعتماد بشري
 
         var targets = await db.PostTargets.Where(t => t.PostId == id && t.Status != "published").ToListAsync(ct);
         if (targets.Count == 0) throw new AuthException(400, "no_targets");
 
         post.Status = PostStatus.Publishing;
+        post.ScheduledAt = null;
         foreach (var t in targets)
         {
             t.Status = "pending";
@@ -118,7 +150,7 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
                              where ids.Contains(t.PostId)
                              select new { t.PostId, Dto = new TargetDto(t.Id, a.Id, a.DisplayName, a.Platform, t.Status, t.RemotePostId, t.Error, t.PublishedAt) })
             .ToListAsync(ct);
-        return posts.Select(p => new PostDto(p.Id, p.Body, p.Status, p.AiGenerated, p.ApprovedAt, p.CreatedAt,
+        return posts.Select(p => new PostDto(p.Id, p.Body, p.Status, p.AiGenerated, p.ApprovedAt, p.ScheduledAt, p.RepeatRule, p.CreatedAt,
             targets.Where(t => t.PostId == p.Id).Select(t => t.Dto).OrderBy(t => t.AccountName).ToList())).ToList();
     }
 

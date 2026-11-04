@@ -4,6 +4,7 @@ using ZakiSocial.Infrastructure.Posts;
 
 namespace ZakiSocial.Api.Endpoints;
 
+public sealed record ScheduleRequest(DateTimeOffset When, string? Repeat);
 public sealed record PostRequest(string Body, List<Guid>? AccountIds, bool AiGenerated = false);
 
 public static class PostEndpoints
@@ -12,7 +13,7 @@ public static class PostEndpoints
     {
         var g = app.MapGroup("/api/posts");
 
-        g.MapGet("", async (string? status, PostService svc, CancellationToken ct) => Results.Ok(await svc.ListAsync(status, ct)))
+        g.MapGet("", async (string? status, DateTimeOffset? from, DateTimeOffset? to, PostService svc, CancellationToken ct) => Results.Ok(await svc.ListAsync(status, from, to, ct)))
             .RequireAuthorization(AuthPolicies.Member);
 
         g.MapGet("/{id:guid}", async (Guid id, PostService svc, CancellationToken ct) => Results.Ok(await svc.GetAsync(id, ct)))
@@ -34,6 +35,14 @@ public static class PostEndpoints
 
         g.MapPost("/{id:guid}/approve", async (Guid id, PostService svc, ClaimsPrincipal user, CancellationToken ct) =>
             Results.Ok(await svc.ApproveAsync(id, AuthEndpoints.UserId(user), ct)))
+            .RequireAuthorization(AuthPolicies.Editor);
+
+        g.MapPut("/{id:guid}/schedule", async (Guid id, ScheduleRequest r, PostService svc, CancellationToken ct) =>
+            Results.Ok(await svc.ScheduleAsync(id, r.When, r.Repeat, ct)))
+            .RequireAuthorization(AuthPolicies.Editor);
+
+        g.MapDelete("/{id:guid}/schedule", async (Guid id, PostService svc, CancellationToken ct) =>
+            Results.Ok(await svc.UnscheduleAsync(id, ct)))
             .RequireAuthorization(AuthPolicies.Editor);
 
         // ما بينشر مباشرة: بيحط مهام بالطابور والعامل بينفّذ.

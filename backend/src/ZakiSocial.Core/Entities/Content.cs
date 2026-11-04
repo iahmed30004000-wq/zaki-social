@@ -17,6 +17,8 @@ public class Post : IHasId, ITenantOwned
     public bool AiGenerated { get; set; }
     public string Status { get; set; } = PostStatus.Draft;
     public DateTimeOffset? ScheduledAt { get; set; }
+    /// <summary>none / daily / weekly: بعد النشر بينعمل نسخة مجدولة للمرة الجاية.</summary>
+    public string RepeatRule { get; set; } = "none";
     public Guid? CreatedBy { get; set; }
     /// <summary>اعتماد بشري: محتوى الذكاء الاصطناعي ما بينشر قبل ما إنسان يعتمده.</summary>
     public DateTimeOffset? ApprovedAt { get; set; }

@@ -440,6 +440,13 @@ namespace ZakiSocial.Data.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<string>("RepeatRule")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("none")
+                        .HasColumnName("repeat_rule");
+
                     b.Property<DateTimeOffset?>("ScheduledAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("scheduled_at");
@@ -469,6 +476,8 @@ namespace ZakiSocial.Data.Migrations
 
                     b.ToTable("posts", null, t =>
                         {
+                            t.HasCheckConstraint("ck_posts_repeat", "repeat_rule IN ('none','daily','weekly')");
+
                             t.HasCheckConstraint("ck_posts_status", "status IN ('draft','scheduled','publishing','published','failed')");
                         });
                 });

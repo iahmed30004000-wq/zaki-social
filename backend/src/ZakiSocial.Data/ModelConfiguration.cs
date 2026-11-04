@@ -73,11 +73,16 @@ internal static class ModelConfiguration
 
         b.Entity<Post>(e =>
         {
-            e.ToTable("posts", t => t.HasCheckConstraint("ck_posts_status", "status IN ('draft','scheduled','publishing','published','failed')"));
+            e.ToTable("posts", t =>
+            {
+                t.HasCheckConstraint("ck_posts_status", "status IN ('draft','scheduled','publishing','published','failed')");
+                t.HasCheckConstraint("ck_posts_repeat", "repeat_rule IN ('none','daily','weekly')");
+            });
             Identity(e);
             Tenant(e);
             e.Property(x => x.Body).IsRequired();
             e.Property(x => x.AiGenerated).HasDefaultValue(false);
+            e.Property(x => x.RepeatRule).IsRequired().HasDefaultValue("none");
             e.Property(x => x.Status).IsRequired().HasDefaultValue("draft");
             e.Property(x => x.CreatedAt).HasDefaultValueSql(Now);
             e.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedBy).OnDelete(DeleteBehavior.SetNull);
