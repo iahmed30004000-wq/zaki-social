@@ -62,9 +62,17 @@ class Handler(BaseHTTPRequestHandler):
     def _record(self, body):
         with LOCK:
             REQUESTS.append({"method": self.command, "path": self.path.split("?")[0], "query": self.path.partition("?")[2], "bearer": self._bearer(),
-                             "basic": self.headers.get("Authorization", "").startswith("Basic "), "version": self.headers.get("LinkedIn-Version"), "body": body})
+                             "basic": self.headers.get("Authorization", "").startswith("Basic "), "version": self.headers.get("LinkedIn-Version"), "proxied": getattr(self, "proxied", False), "body": body})
+
+    def _normalize(self):
+        # طلب عبر بروكسي بييجي بالشكل المطلق: POST http://host/path
+        if self.path.startswith("http"):
+            u = urllib.parse.urlsplit(self.path)
+            self.path = u.path + ("?" + u.query if u.query else "")
+            self.proxied = True
 
     def do_GET(self):
+        self._normalize()
         path = self.path.split("?")[0]
         if path == "/__requests":
             return self._send(REQUESTS)
@@ -72,12 +80,14 @@ class Handler(BaseHTTPRequestHandler):
         self._route("GET", path, {})
 
     def do_PUT(self):
+        self._normalize()
         body = self._body()
         path = self.path.split("?")[0]
         self._record(body)
         self._route("PUT", path, body)
 
     def do_POST(self):
+        self._normalize()
         body = self._body()
         path = self.path.split("?")[0]
         self._record(body)

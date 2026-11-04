@@ -9,6 +9,7 @@ using ZakiSocial.Core.Media;
 using ZakiSocial.Core.Tenancy;
 using ZakiSocial.Data;
 using ZakiSocial.Infrastructure.Media;
+using ZakiSocial.Infrastructure.ProxyPool;
 using ZakiSocial.Infrastructure.Security;
 
 namespace ZakiSocial.Workers;
@@ -23,6 +24,7 @@ public sealed class PublishJob(
     TokenCryptor crypto,
     IMediaStorage storage,
     PublicMediaUrlService publicUrls,
+    ProxyService proxies,
     IConnectorRegistry connectors,
     IJobQueue queue,
     IConfiguration configuration,
@@ -55,6 +57,7 @@ public sealed class PublishJob(
             var credentials = new AccountCredentials(account.Id, account.RemoteUserId, crypto.Decrypt(account.EncAccessToken),
                 account.EncRefreshToken is null ? null : crypto.Decrypt(account.EncRefreshToken));
             var connector = connectors.Get(account.Platform);
+            using var proxyScope = ProxyContext.Use(await proxies.ResolveUrlAsync(account.ProxyId, ct)); // بروكسي الحساب الثابت
             // تجديد التوكن قبل انتهائه (تيك توك: يومياً، X: ساعتين، يوتيوب: ساعة...)
             if (account.TokenExpiry is { } expiry && expiry < DateTimeOffset.UtcNow.AddMinutes(5) && credentials.RefreshToken is not null)
             {
@@ -104,11 +107,11 @@ public sealed class PublishJob(
             target.Error = null;
             logger.LogInformation("published target {Target} on {Platform}", targetId, account.Platform);
         }
-        catch (Exception ex) when (ex is PlatformException or HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             var delays = Delays();
             // نسجّل الرسالة المختصرة بس (بدون توكنات).
-            target.Error = Truncate(ex is PlatformException pe ? $"{pe.Status}: {pe.Message}" : ex.GetType().Name);
+            target.Error = Truncate(ex is PlatformException pe ? $"{pe.Status}: {pe.Message}" : Sanitize($"{ex.GetType().Name}: {ex.Message}"));
             if (ex is PlatformException { Status: 401 } && account is not null) account.Status = "expired";
             if (attempt <= delays.Length && !IsPermanent(ex))
             {
@@ -144,6 +147,9 @@ public sealed class PublishJob(
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(s => TimeSpan.FromSeconds(double.Parse(s, System.Globalization.CultureInfo.InvariantCulture)))
             .ToArray();
+
+    /// <summary>أي خطأ غير متوقع بيتسجّل بالهدف (ما بيضل عالق)، بعد إخفاء بيانات الدخول من أي عنوان.</summary>
+    private static string Sanitize(string s) => System.Text.RegularExpressions.Regex.Replace(s, @"://[^/@\s]*@", "://***@");
 
     private static string Truncate(string s) => s.Length <= 300 ? s : s[..300];
 }

@@ -30,6 +30,9 @@ public static class ServiceRegistration
         services.AddScoped<ZakiSocial.Infrastructure.Media.MediaService>();
         services.AddSingleton<ZakiSocial.Infrastructure.Media.PublicMediaUrlService>();
         services.AddScoped<ZakiSocial.Infrastructure.Prompts.PromptService>();
+        services.AddScoped<ZakiSocial.Infrastructure.ProxyPool.ProxyService>();
+        services.AddScoped<ZakiSocial.Infrastructure.Automation.AutomationService>();
+        services.AddScoped<ZakiSocial.Infrastructure.Automation.AnalyticsService>();
         services.AddScoped<ZakiSocial.Infrastructure.Posts.ScheduleService>();
         services.AddScoped<ZakiSocial.Infrastructure.Ai.AiRouter>();
         services.AddScoped<ZakiSocial.Core.Ai.IAiRouter>(sp => sp.GetRequiredService<ZakiSocial.Infrastructure.Ai.AiRouter>());

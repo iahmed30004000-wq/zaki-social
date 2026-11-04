@@ -242,6 +242,10 @@ namespace ZakiSocial.Data.Migrations
                         .HasColumnName("data")
                         .HasDefaultValueSql("'{}'::jsonb");
 
+                    b.Property<string>("ExternalId")
+                        .HasColumnType("text")
+                        .HasColumnName("external_id");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text")
@@ -262,6 +266,11 @@ namespace ZakiSocial.Data.Migrations
 
                     b.HasIndex("WorkspaceId", "Kind", "CollectedAt")
                         .HasDatabaseName("ix_collected_data_workspace_id_kind_collected_at");
+
+                    b.HasIndex("WorkspaceId", "Kind", "ExternalId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_collected_data_workspace_id_kind_external_id")
+                        .HasFilter("external_id IS NOT NULL");
 
                     b.ToTable("collected_data", (string)null);
                 });

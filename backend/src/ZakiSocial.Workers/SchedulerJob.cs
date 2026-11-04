@@ -69,11 +69,14 @@ public sealed class SchedulerJob(AppDbContext db, ITenantContext tenant, IJobQue
 }
 
 /// <summary>بيسجّل المجدوِل كمهمة متكررة كل دقيقة بالإقلاع.</summary>
-public sealed class RecurringJobsRegistrar(IRecurringJobManager manager) : IHostedService
+public sealed class RecurringJobsRegistrar(IRecurringJobManager manager, Microsoft.Extensions.Configuration.IConfiguration configuration) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
         manager.AddOrUpdate<SchedulerJob>("scheduler", j => j.RunAsync(CancellationToken.None), Cron.Minutely());
+        manager.AddOrUpdate<CollectorJob>("collector", j => j.RunAsync(null, CancellationToken.None), configuration["Workers:CollectorCron"] ?? "*/15 * * * *");
+        manager.AddOrUpdate<ResponderJob>("responder", j => j.RunAsync(CancellationToken.None), configuration["Workers:ResponderCron"] ?? "* * * * *");
+        manager.AddOrUpdate<ProxyHealthJob>("proxy-health", j => j.RunAsync(CancellationToken.None), configuration["Workers:ProxyHealthCron"] ?? "*/10 * * * *");
         return Task.CompletedTask;
     }
 
