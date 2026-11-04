@@ -62,9 +62,39 @@ public sealed class FacebookConnector(HttpClient http, IOptions<FacebookOptions>
 
     public async Task<PublishResult> PublishAsync(AccountCredentials account, PostContent content, CancellationToken ct)
     {
+        var page = account.RemoteUserId;
+        var media = content.Media;
+
+        if (media.Count == 0)
+        {
+            using var feed = await SendAsync(HttpMethod.Post, $"{page}/feed", account.AccessToken, new() { ["message"] = content.Text }, ct);
+            return new PublishResult(feed.RootElement.GetProperty("id").GetString()!);
+        }
+
+        // فيسبوك: فيديو واحد للمنشور
+        var video = media.FirstOrDefault(m => m.Kind == "video");
+        if (video is not null)
+        {
+            using var doc = await SendMultipartAsync($"{page}/videos", account.AccessToken, new() { ["description"] = content.Text }, video, ct);
+            return new PublishResult(doc.RootElement.GetProperty("id").GetString()!);
+        }
+
+        if (media.Count == 1)
+        {
+            using var doc = await SendMultipartAsync($"{page}/photos", account.AccessToken, new() { ["message"] = content.Text }, media[0], ct);
+            var id = doc.RootElement.TryGetProperty("post_id", out var pid) ? pid.GetString() : doc.RootElement.GetProperty("id").GetString();
+            return new PublishResult(id!);
+        }
+
+        // عدة صور: كل وحدة بترفع غير منشورة، وبعدين منشور واحد بيجمعها
         var form = new Dictionary<string, string> { ["message"] = content.Text };
-        using var doc = await SendAsync(HttpMethod.Post, $"{account.RemoteUserId}/feed", account.AccessToken, form, ct);
-        return new PublishResult(doc.RootElement.GetProperty("id").GetString()!);
+        for (var i = 0; i < media.Count; i++)
+        {
+            using var photo = await SendMultipartAsync($"{page}/photos", account.AccessToken, new() { ["published"] = "false" }, media[i], ct);
+            form[$"attached_media[{i}]"] = JsonSerializer.Serialize(new { media_fbid = photo.RootElement.GetProperty("id").GetString() });
+        }
+        using var post = await SendAsync(HttpMethod.Post, $"{page}/feed", account.AccessToken, form, ct);
+        return new PublishResult(post.RootElement.GetProperty("id").GetString()!);
     }
 
     public async Task<IReadOnlyDictionary<string, double>> FetchMetricsAsync(AccountCredentials account, string remoteId, CancellationToken ct)
@@ -104,11 +134,23 @@ public sealed class FacebookConnector(HttpClient http, IOptions<FacebookOptions>
         return doc.RootElement.GetProperty("access_token").GetString()!;
     }
 
-    private async Task<JsonDocument> SendAsync(HttpMethod method, string path, string? bearer, Dictionary<string, string>? form, CancellationToken ct)
+    private Task<JsonDocument> SendAsync(HttpMethod method, string path, string? bearer, Dictionary<string, string>? form, CancellationToken ct) =>
+        SendContentAsync(method, path, bearer, form is null ? null : new FormUrlEncodedContent(form), ct);
+
+    private Task<JsonDocument> SendMultipartAsync(string path, string bearer, Dictionary<string, string> fields, MediaFile file, CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(method, $"{Opt.GraphBase.TrimEnd('/')}/{path}");
+        var content = new MultipartFormDataContent();
+        foreach (var (k, v) in fields) content.Add(new StringContent(v), k);
+        var bytes = new ByteArrayContent(file.Data);
+        bytes.Headers.ContentType = MediaTypeHeaderValue.Parse(file.ContentType);
+        content.Add(bytes, "source", file.FileName);
+        return SendContentAsync(HttpMethod.Post, path, bearer, content, ct);
+    }
+
+    private async Task<JsonDocument> SendContentAsync(HttpMethod method, string path, string? bearer, HttpContent? content, CancellationToken ct)
+    {
+        using var request = new HttpRequestMessage(method, $"{Opt.GraphBase.TrimEnd('/')}/{path}") { Content = content };
         if (bearer is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
-        if (form is not null) request.Content = new FormUrlEncodedContent(form);
 
         using var response = await http.SendAsync(request, ct);
         var body = await response.Content.ReadAsStringAsync(ct);

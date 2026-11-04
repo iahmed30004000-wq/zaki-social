@@ -344,21 +344,74 @@ namespace ZakiSocial.Data.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("ai_generated");
 
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("")
+                        .HasColumnName("content_type");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<double?>("DurationSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("duration_seconds");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text")
+                        .HasColumnName("error");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("integer")
+                        .HasColumnName("height");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("kind");
 
+                    b.Property<string>("OriginalName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("")
+                        .HasColumnName("original_name");
+
+                    b.Property<string>("ProcessedKey")
+                        .HasColumnType("text")
+                        .HasColumnName("processed_key");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("processing")
+                        .HasColumnName("status");
+
                     b.Property<string>("StorageKey")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("storage_key");
+
+                    b.Property<string>("ThumbnailKey")
+                        .HasColumnType("text")
+                        .HasColumnName("thumbnail_key");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("integer")
+                        .HasColumnName("width");
 
                     b.Property<Guid>("WorkspaceId")
                         .HasColumnType("uuid")
@@ -373,6 +426,8 @@ namespace ZakiSocial.Data.Migrations
                     b.ToTable("media_assets", null, t =>
                         {
                             t.HasCheckConstraint("ck_media_assets_kind", "kind IN ('image','video')");
+
+                            t.HasCheckConstraint("ck_media_assets_status", "status IN ('processing','ready','failed')");
                         });
                 });
 
@@ -480,6 +535,36 @@ namespace ZakiSocial.Data.Migrations
 
                             t.HasCheckConstraint("ck_posts_status", "status IN ('draft','scheduled','publishing','published','failed')");
                         });
+                });
+
+            modelBuilder.Entity("ZakiSocial.Core.Entities.PostMedia", b =>
+                {
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<Guid>("MediaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("media_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("PostId", "MediaId")
+                        .HasName("pk_post_media");
+
+                    b.HasIndex("MediaId")
+                        .HasDatabaseName("ix_post_media_media_id");
+
+                    b.HasIndex("WorkspaceId")
+                        .HasDatabaseName("ix_post_media_workspace_id");
+
+                    b.ToTable("post_media", (string)null);
                 });
 
             modelBuilder.Entity("ZakiSocial.Core.Entities.PostTarget", b =>
@@ -1109,6 +1194,30 @@ namespace ZakiSocial.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_posts_workspaces_workspace_id");
+                });
+
+            modelBuilder.Entity("ZakiSocial.Core.Entities.PostMedia", b =>
+                {
+                    b.HasOne("ZakiSocial.Core.Entities.MediaAsset", null)
+                        .WithMany()
+                        .HasForeignKey("MediaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_post_media_media_assets_media_id");
+
+                    b.HasOne("ZakiSocial.Core.Entities.Post", null)
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_post_media_posts_post_id");
+
+                    b.HasOne("ZakiSocial.Core.Entities.Workspace", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_post_media_workspaces_workspace_id");
                 });
 
             modelBuilder.Entity("ZakiSocial.Core.Entities.PostTarget", b =>

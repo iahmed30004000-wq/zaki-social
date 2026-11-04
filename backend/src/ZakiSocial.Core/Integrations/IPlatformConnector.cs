@@ -11,7 +11,10 @@ public sealed record ConnectedAccount(
 /// <summary>بيانات الدخول لحساب مخزّن (بعد فك التشفير بلحظة الاستعمال).</summary>
 public sealed record AccountCredentials(Guid AccountId, string RemoteUserId, string AccessToken, string? RefreshToken);
 
-public sealed record PostContent(string Text, IReadOnlyList<string> MediaUrls);
+/// <summary>ملف وسائط جاهز للرفع للمنصة (النسخة الموحّدة بعد معالجة FFmpeg).</summary>
+public sealed record MediaFile(string Kind, string ContentType, string FileName, byte[] Data);
+
+public sealed record PostContent(string Text, IReadOnlyList<MediaFile> Media);
 
 public sealed record PublishResult(string RemoteId);
 

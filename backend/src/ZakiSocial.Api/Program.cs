@@ -6,6 +6,9 @@ using ZakiSocial.Integrations;
 using ZakiSocial.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
+// رفع الوسائط: حد 320 ميغا بالطلب (الفيديو 300 ميغا كحد أقصى للملف)
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 320L * 1024 * 1024);
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o => o.MultipartBodyLengthLimit = 320L * 1024 * 1024);
 builder.Services.AddZakiInfrastructure(builder.Configuration);
 builder.Services.AddZakiAuth(builder.Configuration);
 builder.Services.AddZakiIntegrations(builder.Configuration);
@@ -45,5 +48,6 @@ app.MapAccountEndpoints();
 app.MapPostEndpoints();
 app.MapAiEndpoints();
 app.MapPromptEndpoints();
+app.MapMediaEndpoints();
 
 app.Run();

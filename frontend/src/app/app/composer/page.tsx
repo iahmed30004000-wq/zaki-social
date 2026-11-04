@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
+import { MediaThumb } from "@/components/media-thumb";
 import { Input } from "@/components/ui/input";
 import { api, errorText } from "@/lib/api";
 
 type Account = { id: string; platform: string; displayName: string; status: string };
 type Target = { id: string; accountName: string; platform: string; status: string; error: string | null };
 type Post = { id: string; body: string; status: string; aiGenerated: boolean; approvedAt: string | null; createdAt: string; targets: Target[] };
+type MediaItem = { id: string; kind: string; originalName: string; status: string; aiGenerated: boolean; approvedAt: string | null };
 type Prompt = { id: string; name: string; category: string | null; task: string; body: string; variables: string[]; isActive: boolean };
 
 const statusNames: Record<string, string> = {
@@ -28,6 +30,8 @@ export default function ComposerPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [media, setMedia] = useState<MediaItem[]>([]);
+  const [mediaIds, setMediaIds] = useState<string[]>([]);
   const [body, setBody] = useState("");
   const [fromAi, setFromAi] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -51,6 +55,7 @@ export default function ComposerPage() {
 
   useEffect(() => {
     api<Account[]>("/api/accounts").then((a) => setAccounts(a.filter((x) => x.status === "active"))).catch((e) => setError(errorText(e)));
+    api<MediaItem[]>("/api/media").then((m) => setMedia(m.filter((x) => x.status === "ready" && (!x.aiGenerated || x.approvedAt)))).catch(() => undefined);
     api<Prompt[]>("/api/prompts")
       .then((p) => {
         const usable = p.filter((x) => x.isActive && aiTasks.includes(x.task));
@@ -66,6 +71,7 @@ export default function ComposerPage() {
 
   const current = useMemo(() => prompts.find((p) => p.name === promptName), [prompts, promptName]);
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const toggleMedia = (id: string) => setMediaIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
   async function guard(action: () => Promise<void>) {
     setError("");
@@ -76,6 +82,7 @@ export default function ComposerPage() {
       const code = (e as { code?: string }).code;
       setError(
         code === "no_targets" ? "اختر حساب واحد على الأقل للنشر"
+        : code === "media_not_ready" ? "الوسائط لسا بتتعالج أو فشلت معالجتها، شوف مكتبة الوسائط"
         : code === "variable_missing" ? "عبّي كل متغيرات البرومبت أول"
         : code === "ai_not_configured" ? "الذكاء الاصطناعي مش مفعّل: أضف مفتاح مزوّد واحد على الأقل بإعدادات السيرفر"
         : code === "ai_unavailable" ? "كل مزوّدي الذكاء الاصطناعي ما ردّوا، جرّب بعد شوي"
@@ -97,7 +104,7 @@ export default function ComposerPage() {
 
   const save = (publish: boolean) =>
     guard(async () => {
-      const post = await api<Post>("/api/posts", { method: "POST", body: { body, accountIds: selected, aiGenerated: fromAi } });
+      const post = await api<Post>("/api/posts", { method: "POST", body: { body, accountIds: selected, aiGenerated: fromAi, mediaIds } });
       // ضغطة "اعتمد وانشر" هي الاعتماد البشري.
       if (publish) {
         if (post.aiGenerated) await api(`/api/posts/${post.id}/approve`, { method: "POST" });
@@ -106,6 +113,7 @@ export default function ComposerPage() {
       setBody("");
       setFromAi(false);
       setSelected([]);
+      setMediaIds([]);
       await loadPosts();
     });
 
@@ -155,6 +163,19 @@ export default function ComposerPage() {
               </label>
             ))}
           </fieldset>
+          {media.length > 0 && (
+            <fieldset className="space-y-1">
+              <legend className="text-sm text-muted-foreground">أرفق وسائط (فيسبوك: فيديو واحد أو حتى 10 صور):</legend>
+              <div className="flex flex-wrap gap-2">
+                {media.map((m) => (
+                  <button key={m.id} type="button" onClick={() => toggleMedia(m.id)} title={m.originalName}
+                    className={`overflow-hidden rounded-lg border-2 ${mediaIds.includes(m.id) ? "border-primary" : "border-transparent"}`}>
+                    <MediaThumb id={m.id} kind={m.kind} className="h-16 w-16" />
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <div className="flex gap-2">
             <Button disabled={busy || !body.trim()} onClick={() => save(true)}>{fromAi ? "اعتمد وانشر" : "نشر الآن"}</Button>
             <Button variant="outline" disabled={busy || !body.trim()} onClick={() => save(false)}>حفظ كمسودة</Button>

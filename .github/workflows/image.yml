@@ -111,6 +111,11 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,scope=frontend,mode=max
 
+      - name: تخزين الملفات (MinIO تجريبي)
+        run: |
+          docker run -d --name minio --network host -e MINIO_ROOT_USER=ci-minio -e MINIO_ROOT_PASSWORD=ci-minio-password-not-used chainguard/minio:latest server /tmp/data --address :9000
+          for _ in $(seq 1 40); do curl -fsS http://127.0.0.1:9000/minio/health/live > /dev/null && break; sleep 1; done
+
       - name: خادم المنصات التجريبي (بدل فيسبوك الحقيقي)
         run: |
           nohup python3 scripts/fake_platforms.py 9090 > /tmp/fake_platforms.log 2>&1 &
@@ -127,6 +132,7 @@ jobs:
             -e 'Encryption__Key=ci-only-encryption-key-not-used-anywhere-0123456789' \
             -e 'App__PublicUrl=http://127.0.0.1:8080' \
             -e 'Workers__RetryDelaysSeconds=1,1' \
+            -e 'Storage__Endpoint=http://127.0.0.1:9000' -e 'Storage__AccessKey=ci-minio' -e 'Storage__SecretKey=ci-minio-password-not-used' -e 'Storage__Bucket=zaki-media' \
             -e 'Ai__Claude__ApiKey=ci-claude-key' -e 'Ai__Claude__Model=claude-ci' -e 'Ai__Claude__BaseUrl=http://127.0.0.1:9090/claude' \
             -e 'Ai__OpenAi__ApiKey=ci-openai-key' -e 'Ai__OpenAi__Model=gpt-ci' -e 'Ai__OpenAi__BaseUrl=http://127.0.0.1:9090/openai' \
             -e 'Ai__Local__Model=local-ci' -e 'Ai__Local__BaseUrl=http://127.0.0.1:9090/local' \
@@ -173,6 +179,9 @@ jobs:
 
       - name: الجدولة والتقويم وأفضل وقت
         run: bash scripts/ci-schedule-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
+
+      - name: الوسائط (رفع، معالجة FFmpeg، نشر صور وفيديو)
+        run: bash scripts/ci-media-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 
       - name: ربط فيسبوك وتشفير التوكنات (مع خادم تجريبي)
         env:
@@ -226,7 +235,7 @@ jobs:
 
       - name: إيقاف الحاويات
         if: always()
-        run: docker rm -f backend frontend 2>/dev/null || true
+        run: docker rm -f backend frontend minio 2>/dev/null || true
 
       # من هون وتحت: بس على الفرع الرئيسي.
       - uses: docker/login-action@v3

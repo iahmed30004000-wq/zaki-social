@@ -103,13 +103,29 @@ internal static class ModelConfiguration
 
         b.Entity<MediaAsset>(e =>
         {
-            e.ToTable("media_assets", t => t.HasCheckConstraint("ck_media_assets_kind", "kind IN ('image','video')"));
+            e.ToTable("media_assets", t =>
+            {
+                t.HasCheckConstraint("ck_media_assets_kind", "kind IN ('image','video')");
+                t.HasCheckConstraint("ck_media_assets_status", "status IN ('processing','ready','failed')");
+            });
             Identity(e);
             Tenant(e);
             e.Property(x => x.StorageKey).IsRequired();
             e.Property(x => x.Kind).IsRequired();
             e.Property(x => x.AiGenerated).HasDefaultValue(false);
+            e.Property(x => x.OriginalName).IsRequired().HasDefaultValue("");
+            e.Property(x => x.ContentType).IsRequired().HasDefaultValue("");
+            e.Property(x => x.Status).IsRequired().HasDefaultValue("processing");
             e.Property(x => x.CreatedAt).HasDefaultValueSql(Now);
+        });
+
+        b.Entity<PostMedia>(e =>
+        {
+            e.ToTable("post_media");
+            e.HasKey(x => new { x.PostId, x.MediaId });
+            Tenant(e);
+            e.HasOne<Post>().WithMany().HasForeignKey(x => x.PostId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<MediaAsset>().WithMany().HasForeignKey(x => x.MediaId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Prompt>(e =>

@@ -8,7 +8,7 @@ using ZakiSocial.Infrastructure.Auth;
 namespace ZakiSocial.Infrastructure.Posts;
 
 public sealed record TargetDto(Guid Id, Guid AccountId, string AccountName, string Platform, string Status, string? RemotePostId, string? Error, DateTimeOffset? PublishedAt);
-public sealed record PostDto(Guid Id, string Body, string Status, bool AiGenerated, DateTimeOffset? ApprovedAt, DateTimeOffset? ScheduledAt, string RepeatRule, DateTimeOffset CreatedAt, IReadOnlyList<TargetDto> Targets);
+public sealed record PostDto(Guid Id, string Body, string Status, bool AiGenerated, DateTimeOffset? ApprovedAt, DateTimeOffset? ScheduledAt, string RepeatRule, DateTimeOffset CreatedAt, IReadOnlyList<Guid> MediaIds, IReadOnlyList<TargetDto> Targets);
 
 /// <summary>
 /// المنشورات. حالات المنشور: draft -> publishing -> published | failed.
@@ -35,17 +35,18 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
         return (await ToDtosAsync([post], ct))[0];
     }
 
-    public async Task<PostDto> CreateAsync(string body, IReadOnlyList<Guid> accountIds, Guid createdBy, bool aiGenerated, CancellationToken ct)
+    public async Task<PostDto> CreateAsync(string body, IReadOnlyList<Guid> accountIds, Guid createdBy, bool aiGenerated, IReadOnlyList<Guid> mediaIds, CancellationToken ct)
     {
         ValidateBody(body);
         var post = new Post { Id = Guid.NewGuid(), WorkspaceId = Workspace, Body = body.Trim(), AiGenerated = aiGenerated, Status = PostStatus.Draft, CreatedBy = createdBy, CreatedAt = DateTimeOffset.UtcNow };
         db.Posts.Add(post);
         await AddTargetsAsync(post, accountIds, ct);
+        await AddMediaAsync(post, mediaIds, ct);
         await db.SaveChangesAsync(ct);
         return await GetAsync(post.Id, ct);
     }
 
-    public async Task<PostDto> UpdateDraftAsync(Guid id, string body, IReadOnlyList<Guid> accountIds, CancellationToken ct)
+    public async Task<PostDto> UpdateDraftAsync(Guid id, string body, IReadOnlyList<Guid> accountIds, IReadOnlyList<Guid> mediaIds, CancellationToken ct)
     {
         ValidateBody(body);
         var post = await FindAsync(id, ct);
@@ -54,7 +55,9 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
         post.ApprovedAt = null;
         post.ApprovedBy = null;
         db.PostTargets.RemoveRange(db.PostTargets.Where(t => t.PostId == id));
+        db.PostMedia.RemoveRange(db.PostMedia.Where(m => m.PostId == id));
         await AddTargetsAsync(post, accountIds, ct);
+        await AddMediaAsync(post, mediaIds, ct);
         await db.SaveChangesAsync(ct);
         return await GetAsync(id, ct);
     }
@@ -116,6 +119,10 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
         var targets = await db.PostTargets.Where(t => t.PostId == id && t.Status != "published").ToListAsync(ct);
         if (targets.Count == 0) throw new AuthException(400, "no_targets");
 
+        var notReady = await (from pm in db.PostMedia join m in db.MediaAssets on pm.MediaId equals m.Id
+                              where pm.PostId == id && m.Status != "ready" select m.Id).AnyAsync(ct);
+        if (notReady) throw new AuthException(409, "media_not_ready");
+
         post.Status = PostStatus.Publishing;
         post.ScheduledAt = null;
         foreach (var t in targets)
@@ -127,6 +134,19 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
 
         foreach (var t in targets) queue.EnqueuePublish(Workspace, t.Id);
         return await GetAsync(id, ct);
+    }
+
+    /// <summary>بيربط وسائط (بحد أقصى 10). المولّد بالذكاء الاصطناعي لازم يكون معتمداً.</summary>
+    private async Task AddMediaAsync(Post post, IReadOnlyList<Guid> mediaIds, CancellationToken ct)
+    {
+        var ids = mediaIds.Distinct().ToList();
+        if (ids.Count == 0) return;
+        if (ids.Count > 10) throw new AuthException(400, "too_many_media");
+        var assets = await db.MediaAssets.Where(m => m.WorkspaceId == Workspace && ids.Contains(m.Id)).ToListAsync(ct);
+        if (assets.Count != ids.Count) throw new AuthException(400, "media_invalid");
+        if (assets.Any(a => a.AiGenerated && a.ApprovedAt is null)) throw new AuthException(409, "media_approval_required");
+        var order = 0;
+        foreach (var id in ids) db.PostMedia.Add(new PostMedia { PostId = post.Id, MediaId = id, WorkspaceId = Workspace, SortOrder = order++ });
     }
 
     private async Task AddTargetsAsync(Post post, IReadOnlyList<Guid> accountIds, CancellationToken ct)
@@ -145,12 +165,14 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
     private async Task<IReadOnlyList<PostDto>> ToDtosAsync(IReadOnlyList<Post> posts, CancellationToken ct)
     {
         var ids = posts.Select(p => p.Id).ToList();
+        var media = await db.PostMedia.Where(m => ids.Contains(m.PostId)).OrderBy(m => m.SortOrder).Select(m => new { m.PostId, m.MediaId }).ToListAsync(ct);
         var targets = await (from t in db.PostTargets
                              join a in db.SocialAccounts on t.AccountId equals a.Id
                              where ids.Contains(t.PostId)
                              select new { t.PostId, Dto = new TargetDto(t.Id, a.Id, a.DisplayName, a.Platform, t.Status, t.RemotePostId, t.Error, t.PublishedAt) })
             .ToListAsync(ct);
         return posts.Select(p => new PostDto(p.Id, p.Body, p.Status, p.AiGenerated, p.ApprovedAt, p.ScheduledAt, p.RepeatRule, p.CreatedAt,
+            media.Where(m => m.PostId == p.Id).Select(m => m.MediaId).ToList(),
             targets.Where(t => t.PostId == p.Id).Select(t => t.Dto).OrderBy(t => t.AccountName).ToList())).ToList();
     }
 

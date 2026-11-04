@@ -17,7 +17,7 @@ export const modules = [
   { href: "/app/prompts", label: "مركز البرومبتات", ready: true },
   { href: "/app/automations", label: "الأتمتة", step: 13 },
   { href: "/app/analytics", label: "التحليلات", step: 14 },
-  { href: "/app/media", label: "مكتبة الوسائط", step: 9 },
+  { href: "/app/media", label: "مكتبة الوسائط", ready: true },
   { href: "/app/team", label: "الفريق والصلاحيات", ready: true },
   { href: "/app/settings", label: "الإعدادات", step: 15 },
 ] as const;
