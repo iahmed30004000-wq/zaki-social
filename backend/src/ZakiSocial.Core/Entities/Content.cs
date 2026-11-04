@@ -18,6 +18,9 @@ public class Post : IHasId, ITenantOwned
     public string Status { get; set; } = PostStatus.Draft;
     public DateTimeOffset? ScheduledAt { get; set; }
     public Guid? CreatedBy { get; set; }
+    /// <summary>اعتماد بشري: محتوى الذكاء الاصطناعي ما بينشر قبل ما إنسان يعتمده.</summary>
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public Guid? ApprovedBy { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
 

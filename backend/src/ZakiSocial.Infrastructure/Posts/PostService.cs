@@ -8,7 +8,7 @@ using ZakiSocial.Infrastructure.Auth;
 namespace ZakiSocial.Infrastructure.Posts;
 
 public sealed record TargetDto(Guid Id, Guid AccountId, string AccountName, string Platform, string Status, string? RemotePostId, string? Error, DateTimeOffset? PublishedAt);
-public sealed record PostDto(Guid Id, string Body, string Status, bool AiGenerated, DateTimeOffset CreatedAt, IReadOnlyList<TargetDto> Targets);
+public sealed record PostDto(Guid Id, string Body, string Status, bool AiGenerated, DateTimeOffset? ApprovedAt, DateTimeOffset CreatedAt, IReadOnlyList<TargetDto> Targets);
 
 /// <summary>
 /// المنشورات. حالات المنشور: draft -> publishing -> published | failed.
@@ -32,10 +32,10 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
         return (await ToDtosAsync([post], ct))[0];
     }
 
-    public async Task<PostDto> CreateAsync(string body, IReadOnlyList<Guid> accountIds, Guid createdBy, CancellationToken ct)
+    public async Task<PostDto> CreateAsync(string body, IReadOnlyList<Guid> accountIds, Guid createdBy, bool aiGenerated, CancellationToken ct)
     {
         ValidateBody(body);
-        var post = new Post { Id = Guid.NewGuid(), WorkspaceId = Workspace, Body = body.Trim(), Status = PostStatus.Draft, CreatedBy = createdBy, CreatedAt = DateTimeOffset.UtcNow };
+        var post = new Post { Id = Guid.NewGuid(), WorkspaceId = Workspace, Body = body.Trim(), AiGenerated = aiGenerated, Status = PostStatus.Draft, CreatedBy = createdBy, CreatedAt = DateTimeOffset.UtcNow };
         db.Posts.Add(post);
         await AddTargetsAsync(post, accountIds, ct);
         await db.SaveChangesAsync(ct);
@@ -48,6 +48,8 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
         var post = await FindAsync(id, ct);
         if (post.Status != PostStatus.Draft) throw new AuthException(409, "post_not_editable");
         post.Body = body.Trim();
+        post.ApprovedAt = null;
+        post.ApprovedBy = null;
         db.PostTargets.RemoveRange(db.PostTargets.Where(t => t.PostId == id));
         await AddTargetsAsync(post, accountIds, ct);
         await db.SaveChangesAsync(ct);
@@ -62,11 +64,23 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>اعتماد بشري لمنشور مولّد بالذكاء الاصطناعي. بيلغي أي تعديل لاحق على النص.</summary>
+    public async Task<PostDto> ApproveAsync(Guid id, Guid userId, CancellationToken ct)
+    {
+        var post = await FindAsync(id, ct);
+        if (post.Status != PostStatus.Draft) throw new AuthException(409, "post_not_editable");
+        post.ApprovedAt = DateTimeOffset.UtcNow;
+        post.ApprovedBy = userId;
+        await db.SaveChangesAsync(ct);
+        return await GetAsync(id, ct);
+    }
+
     /// <summary>ينقل المنشور لحالة النشر ويحط مهمة لكل حساب مش منشور بعد. ما بينشر بنفسه.</summary>
     public async Task<PostDto> PublishAsync(Guid id, CancellationToken ct)
     {
         var post = await FindAsync(id, ct);
         if (post.Status is not (PostStatus.Draft or PostStatus.Failed)) throw new AuthException(409, "post_not_publishable");
+        if (post.AiGenerated && post.ApprovedAt is null) throw new AuthException(409, "approval_required"); // محتوى الذكاء الاصطناعي لازم اعتماد بشري
 
         var targets = await db.PostTargets.Where(t => t.PostId == id && t.Status != "published").ToListAsync(ct);
         if (targets.Count == 0) throw new AuthException(400, "no_targets");
@@ -104,7 +118,7 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
                              where ids.Contains(t.PostId)
                              select new { t.PostId, Dto = new TargetDto(t.Id, a.Id, a.DisplayName, a.Platform, t.Status, t.RemotePostId, t.Error, t.PublishedAt) })
             .ToListAsync(ct);
-        return posts.Select(p => new PostDto(p.Id, p.Body, p.Status, p.AiGenerated, p.CreatedAt,
+        return posts.Select(p => new PostDto(p.Id, p.Body, p.Status, p.AiGenerated, p.ApprovedAt, p.CreatedAt,
             targets.Where(t => t.PostId == p.Id).Select(t => t.Dto).OrderBy(t => t.AccountName).ToList())).ToList();
     }
 
