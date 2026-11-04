@@ -40,6 +40,7 @@ call POST /api/workspace/members "{\"email\":\"y-$SUFFIX@example.com\",\"role\":
 echo "-- مستخدم بكلمة سر كتبها المالك"
 call POST /api/workspace/members "{\"email\":\"$EMP2\",\"role\":\"viewer\",\"password\":\"typed-by-the-boss-1\"}" "$TOKEN_O"; expect 200 "create with typed password"
 [ "$(field .tempPassword)" = "typed-by-the-boss-1" ] || fail "typed password should be returned as is"
+EMP2_ID=$(field .userId)
 
 echo "-- المستخدم بيدخل بالمؤقتة ولازم يغيّرها"
 call POST /api/auth/login "{\"email\":\"$EMP\",\"password\":\"$TEMP\"}"; expect 200 "login with temp password"
@@ -70,14 +71,15 @@ echo "-- المالك بيعيد تعيين كلمة المستخدم"
 call GET /api/workspace/members "" "$TOKEN_O"; expect 200 "list members"
 [ "$(jq -r --arg e "$EMP" '.[]|select(.email==$e)|.managed' /tmp/body)" = "true" ] || fail "created user should be managed"
 [ "$(jq -r --arg e "$OWNER" '.[]|select(.email==$e)|.managed' /tmp/body)" = "false" ] || fail "self-registered owner should not be managed"
-call POST "/api/workspace/members/$EMP_ID/reset-password" "{}" "$TOKEN_O"; expect 200 "owner resets password"
+# بمستخدم ثاني (حماية التخمين بتحدّد محاولات الإيميل الواحد بالدقيقة)
+call POST "/api/workspace/members/$EMP2_ID/reset-password" "{}" "$TOKEN_O"; expect 200 "owner resets password"
 TEMP2=$(field .tempPassword)
-call POST /api/auth/login "{\"email\":\"$EMP\",\"password\":\"my-own-new-password\"}"; expect 401 "password changed by reset"
-call POST /api/auth/login "{\"email\":\"$EMP\",\"password\":\"$TEMP2\"}"; expect 200 "login with reset password"
+call POST /api/auth/login "{\"email\":\"$EMP2\",\"password\":\"typed-by-the-boss-1\"}"; expect 401 "password changed by reset"
+call POST /api/auth/login "{\"email\":\"$EMP2\",\"password\":\"$TEMP2\"}"; expect 200 "login with reset password"
 [ "$(field .mustChangePassword)" = "true" ] || fail "must change again after reset"
 
 echo "-- مالك مساحة ثانية ما بيقدر يلمس هالمستخدم"
-call POST "/api/workspace/members/$EMP_ID/reset-password" "{}" "$TOKEN_X"; expect 404 "other workspace cannot reset"
+call POST "/api/workspace/members/$EMP2_ID/reset-password" "{}" "$TOKEN_X"; expect 404 "other workspace cannot reset"
 
 echo "-- المالك ما بيقدر يعيد تعيين كلمة سر حساب مش من إنشائه (حتى حسابه هو)"
 OWNER_ID=$(jq -r --arg e "$OWNER" '.[]|select(.email==$e)|.userId' <(curl -s "$BASE/api/workspace/members" -H "Authorization: Bearer $TOKEN_O"))
