@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { HealthStatus } from "@/components/health-status";
+import { buttonVariants } from "@/components/ui/button";
 
 const platforms = ["فيسبوك", "إنستغرام", "تيك توك", "إكس", "يوتيوب", "لينكدإن"];
 
@@ -6,11 +8,15 @@ export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-8 px-4 py-12">
       <header className="space-y-3">
-        <p className="text-sm font-medium text-primary">قيد البناء — الخطوة 01</p>
+        <p className="text-sm font-medium text-primary">قيد البناء</p>
         <h1 className="text-3xl font-bold leading-tight sm:text-4xl">منصة زكي للسوشال ميديا</h1>
         <p className="text-lg text-muted-foreground">
           كل حساباتك بمكان واحد، والذكاء الاصطناعي بيكتب ويجدول ويرد ويحلل معك.
         </p>
+        <div className="flex gap-2 pt-2">
+          <Link href="/login" className={buttonVariants()}>تسجيل الدخول</Link>
+          <Link href="/register" className={buttonVariants({ variant: "outline" })}>إنشاء حساب</Link>
+        </div>
       </header>
 
       <ul className="flex flex-wrap gap-2">
