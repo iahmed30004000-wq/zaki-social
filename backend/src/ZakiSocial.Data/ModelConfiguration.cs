@@ -113,6 +113,7 @@ internal static class ModelConfiguration
             Identity(e);
             Tenant(e);
             e.Property(x => x.Name).IsRequired();
+            e.Property(x => x.Task).IsRequired().HasDefaultValue("caption");
             e.Property(x => x.Body).IsRequired();
             e.Property(x => x.Variables).HasColumnType("jsonb");
             e.Property(x => x.Version).HasDefaultValue(1);

@@ -4,7 +4,7 @@ using ZakiSocial.Infrastructure.Posts;
 
 namespace ZakiSocial.Api.Endpoints;
 
-public sealed record PostRequest(string Body, List<Guid>? AccountIds);
+public sealed record PostRequest(string Body, List<Guid>? AccountIds, bool AiGenerated = false);
 
 public static class PostEndpoints
 {
@@ -19,7 +19,7 @@ public static class PostEndpoints
             .RequireAuthorization(AuthPolicies.Member);
 
         g.MapPost("", async (PostRequest r, PostService svc, ClaimsPrincipal user, CancellationToken ct) =>
-            Results.Ok(await svc.CreateAsync(r.Body, r.AccountIds ?? [], AuthEndpoints.UserId(user), ct)))
+            Results.Ok(await svc.CreateAsync(r.Body, r.AccountIds ?? [], AuthEndpoints.UserId(user), r.AiGenerated, ct)))
             .RequireAuthorization(AuthPolicies.Editor);
 
         g.MapPut("/{id:guid}", async (Guid id, PostRequest r, PostService svc, CancellationToken ct) =>
@@ -31,6 +31,10 @@ public static class PostEndpoints
             await svc.DeleteAsync(id, ct);
             return Results.NoContent();
         }).RequireAuthorization(AuthPolicies.Editor);
+
+        g.MapPost("/{id:guid}/approve", async (Guid id, PostService svc, ClaimsPrincipal user, CancellationToken ct) =>
+            Results.Ok(await svc.ApproveAsync(id, AuthEndpoints.UserId(user), ct)))
+            .RequireAuthorization(AuthPolicies.Editor);
 
         // ما بينشر مباشرة: بيحط مهام بالطابور والعامل بينفّذ.
         g.MapPost("/{id:guid}/publish", async (Guid id, PostService svc, CancellationToken ct) =>

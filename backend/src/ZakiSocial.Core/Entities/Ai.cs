@@ -7,6 +7,8 @@ public class Prompt : IHasId, ITenantOwned
     public Guid WorkspaceId { get; set; }
     public string Name { get; set; } = "";
     public string? Category { get; set; }
+    /// <summary>نوع المهمة لموجّه الذكاء الاصطناعي (caption, ideas, rewrite, hashtags, reply, analysis, classify).</summary>
+    public string Task { get; set; } = "caption";
     public string Body { get; set; } = "";
     /// <summary>JSON: تعريف المتغيرات {{...}}.</summary>
     public string? Variables { get; set; }

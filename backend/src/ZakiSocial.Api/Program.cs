@@ -44,5 +44,6 @@ app.MapWorkspaceEndpoints();
 app.MapAccountEndpoints();
 app.MapPostEndpoints();
 app.MapAiEndpoints();
+app.MapPromptEndpoints();
 
 app.Run();
