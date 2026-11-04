@@ -23,7 +23,7 @@ export default function OverviewPage() {
             <li key={m.href}>
               <Link href={m.href} className="block rounded-xl border border-border bg-card p-4 hover:border-primary">
                 <p className="font-medium">{m.label}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{"ready" in m && m.ready ? "جاهز" : `قريباً — الخطوة ${"step" in m ? m.step : ""}`}</p>
+                <p className="mt-1 text-xs text-muted-foreground">جاهز</p>
               </Link>
             </li>
           ))}

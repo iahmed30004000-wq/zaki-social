@@ -35,6 +35,12 @@ public class User : IHasId
     public string Email { get; set; } = "";
     public string PasswordHash { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>المساحة اللي أنشأت هالمستخدم مباشرة (null = سجّل بنفسه أو بدعوة). بس هي بتقدر تعيد تعيين كلمة سره.</summary>
+    public Guid? ManagedByWorkspaceId { get; set; }
+
+    /// <summary>كلمة سر مؤقتة حطها المالك: لازم المستخدم يغيّرها أول ما يدخل.</summary>
+    public bool MustChangePassword { get; set; }
 }
 
 /// <summary>ربط مستخدم بمساحة ودور (owner / editor / viewer).</summary>

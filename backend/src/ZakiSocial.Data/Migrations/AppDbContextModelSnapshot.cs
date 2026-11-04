@@ -1030,6 +1030,16 @@ namespace ZakiSocial.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("email");
 
+                    b.Property<Guid?>("ManagedByWorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("managed_by_workspace_id");
+
+                    b.Property<bool>("MustChangePassword")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("must_change_password");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text")

@@ -181,6 +181,18 @@ jobs:
           page=$(curl -fsS http://127.0.0.1:3000/)
           echo "$page" | grep -q 'dir="rtl"' || { echo "::error::landing page is not RTL"; exit 1; }
 
+      - name: تثبيت FFmpeg (بمحاولات ومهلة)
+        timeout-minutes: 6
+        run: |
+          set -eu
+          if ! command -v ffmpeg > /dev/null; then
+            for attempt in 1 2 3; do
+              if timeout 120 sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 update -qq                 && timeout 180 sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 install -y -qq ffmpeg > /dev/null; then break; fi
+              echo "محاولة $attempt فشلت، بنعيد"; sleep 5
+            done
+          fi
+          ffmpeg -version | head -1
+
       - name: النشر عبر الطابور (ريديس + عامل) مع إعادة المحاولة
         run: bash scripts/ci-publish-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 
@@ -212,6 +224,9 @@ jobs:
 
       - name: الدخول والصلاحيات وعزل المساحات (تسجيل حقيقي عبر الخادم)
         run: bash scripts/ci-auth-check.sh http://127.0.0.1:8080
+
+      - name: إنشاء المستخدمين من المالك وتغيير كلمة السر
+        run: bash scripts/ci-members-check.sh http://127.0.0.1:8080
 
       - name: الجداول وعزل المساحات (على قاعدة حقيقية)
         env:

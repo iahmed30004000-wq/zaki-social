@@ -13,6 +13,7 @@ type AuthState = {
   logout: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   createWorkspace: (name: string) => Promise<void>;
+  changePassword: (current: string, next: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       switchWorkspace: async (workspaceId) => apply(await authCall("/api/auth/switch-workspace", { workspaceId })),
       createWorkspace: async (name) => apply(await authCall("/api/workspaces", { name })),
+      changePassword: async (current, next) => apply(await authCall("/api/auth/change-password", { current, next })),
     }),
     [status, session, apply],
   );

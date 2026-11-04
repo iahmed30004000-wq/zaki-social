@@ -3,6 +3,9 @@
 # الاستعمال: scripts/ci-auth-check.sh http://127.0.0.1:8080
 set -eu
 
+# مهلة لكل نداء: ما بنقبل ينعلّق الفحص بلا نهاية
+curl() { command curl --connect-timeout 10 --max-time 60 "$@"; }
+
 BASE="${1:-http://127.0.0.1:8080}"
 PASS="correct-horse-battery-staple"
 fail() { echo "::error::$1"; exit 1; }

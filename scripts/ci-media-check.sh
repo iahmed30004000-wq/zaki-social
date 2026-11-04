@@ -2,6 +2,9 @@
 # فحص الوسائط: رفع (MinIO)، معالجة FFmpeg بالعامل، حدود، صلاحيات، عزل، ونشر صورة/فيديو/عدة صور عبر الطابور.
 set -eu
 
+# مهلة لكل نداء: ما بنقبل ينعلّق الفحص بلا نهاية
+curl() { command curl --connect-timeout 10 --max-time 60 "$@"; }
+
 BASE="${1:-http://127.0.0.1:8080}"
 FAKE="${2:-http://127.0.0.1:9090}"
 PASS="correct-horse-battery-staple"
@@ -22,7 +25,7 @@ wait_post() {
 }
 requests() { curl -s "$FAKE/__requests"; }
 
-command -v ffmpeg > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null; }
+command -v ffmpeg > /dev/null || fail "ffmpeg غير مثبّت (خطوة تثبيت FFmpeg بالمسار)"
 WORK=$(mktemp -d)
 ffmpeg -loglevel error -f lavfi -i testsrc=size=800x600:rate=1 -frames:v 1 "$WORK/photo.png"
 ffmpeg -loglevel error -f lavfi -i testsrc=size=640x360:rate=10 -f lavfi -i sine=frequency=440 -t 2 -pix_fmt yuv420p -shortest "$WORK/clip.mp4"

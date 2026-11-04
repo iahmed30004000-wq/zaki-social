@@ -2,6 +2,9 @@
 # فحص بقية المنصات (إنستغرام، تيك توك، إكس، يوتيوب، لينكدإن) مع خادم تجريبي: الربط، النشر بنفس المؤلّف، تجديد التوكن، أخطاء دائمة.
 set -eu
 
+# مهلة لكل نداء: ما بنقبل ينعلّق الفحص بلا نهاية
+curl() { command curl --connect-timeout 10 --max-time 60 "$@"; }
+
 BASE="${1:-http://127.0.0.1:8080}"
 FAKE="${2:-http://127.0.0.1:9090}"
 PASS="correct-horse-battery-staple"
@@ -14,7 +17,7 @@ wait_post() { for _ in $(seq 1 60); do call GET "/api/posts/$1" "$2"; [ "$(field
 upload() { curl -s -o /tmp/body -X POST "$BASE/api/media" -H "Authorization: Bearer $1" -F "file=@$2;type=$3" ; }
 wait_media() { for _ in $(seq 1 90); do call GET "/api/media/$2" "$1"; [ "$(field .status)" = ready ] && return 0; sleep 1; done; fail "media $2 not ready"; }
 
-command -v ffmpeg > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null; }
+command -v ffmpeg > /dev/null || fail "ffmpeg غير مثبّت (خطوة تثبيت FFmpeg بالمسار)"
 WORK=$(mktemp -d)
 ffmpeg -loglevel error -f lavfi -i testsrc=size=800x600:rate=1 -frames:v 1 "$WORK/photo.png"
 ffmpeg -loglevel error -f lavfi -i testsrc=size=640x360:rate=10 -f lavfi -i sine=frequency=440 -t 2 -pix_fmt yuv420p -shortest "$WORK/clip.mp4"
