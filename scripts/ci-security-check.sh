@@ -25,9 +25,10 @@ for path in /api/me /api/accounts /api/accounts/platforms /api/posts /api/media 
   code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE$path")
   [ "$code" = 401 ] || fail "$path must require login (got $code)"
 done
-for method in POST PUT DELETE; do
-  code=$(curl -s -o /dev/null -w "%{http_code}" -X "$method" "$BASE/api/posts/00000000-0000-0000-0000-000000000000" -H 'Content-Type: application/json' -d '{}')
-  [ "$code" = 401 ] || fail "$method on a post must require login (got $code)"
+for spec in "POST /api/posts" "PUT /api/posts/00000000-0000-0000-0000-000000000000" "DELETE /api/posts/00000000-0000-0000-0000-000000000000" "POST /api/media" "POST /api/ai/complete" "POST /api/proxies" "PUT /api/automation/rules/00000000-0000-0000-0000-000000000000"; do
+  method=${spec%% *}; path=${spec#* }
+  code=$(curl -s -o /dev/null -w "%{http_code}" -X "$method" "$BASE$path" -H 'Content-Type: application/json' -d '{}')
+  [ "$code" = 401 ] || fail "$method $path must require login (got $code)"
 done
 docker logs backend 2>&1 | grep -q "ENDPOINT AUDIT OK" || fail "the endpoint audit did not pass at startup"
 
