@@ -36,6 +36,7 @@ app.Use(async (http, next) =>
     catch (AuthException ex) when (!http.Response.HasStarted)
     {
         http.Response.StatusCode = ex.Status;
+        if (ex.Status == StatusCodes.Status429TooManyRequests) http.Response.Headers.RetryAfter = (60 - DateTimeOffset.UtcNow.Second).ToString();
         await http.Response.WriteAsJsonAsync(new { error = ex.Code });
     }
 });
