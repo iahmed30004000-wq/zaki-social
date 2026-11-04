@@ -15,6 +15,17 @@ REQUESTS = []
 LOCK = threading.Lock()
 
 
+def make_png(width=96, height=64):
+    """PNG صالح بلون واحد (بدون مكتبات)."""
+    import struct
+    import zlib
+    raw = b"".join(b"\x00" + b"\x20\x80\xc0" * width for _ in range(height))
+    def chunk(kind, data):
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):  # صامت
         pass
@@ -102,6 +113,11 @@ class Handler(BaseHTTPRequestHandler):
             if not token.startswith("PAGETOKEN_"):
                 return self._send({"error": {"message": "bad page token"}}, 401)
             return self._send({"id": "video_%d" % len(REQUESTS)})
+        if method == "POST" and path == "/openai/images/generations":
+            if not token:
+                return self._send({"error": "no key"}, 401)
+            import base64
+            return self._send({"data": [{"b64_json": base64.b64encode(make_png()).decode()}]})
         # ---- الذكاء الاصطناعي ----
         if method == "POST" and path in ("/claude/v1/messages", "/openai/chat/completions", "/local/chat/completions"):
             who = path.split("/")[1]

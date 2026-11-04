@@ -22,6 +22,8 @@ public static class AiTasks
     public const string Reply = "reply";
     // رؤية
     public const string Vision = "vision";
+    // توليد صور
+    public const string Image = "image";
 }
 
 public sealed record AiImage(string MimeType, string Base64);
@@ -39,6 +41,16 @@ public sealed record AiRequest(
 public sealed record AiResult(string Text, string Provider, string Model, int InputTokens, int OutputTokens, bool FellBack = false);
 
 public sealed record AiCapabilities(bool Text, bool Vision, bool Json);
+
+public sealed record ImageResult(byte[] Bytes, string MimeType, string Provider, string Model);
+
+/// <summary>مزوّد بيولّد صور (واجهة OpenAI images). التوليد يمر بالموجّه فقط.</summary>
+public interface IImageProvider
+{
+    string Name { get; }
+    bool ImageConfigured { get; }
+    Task<ImageResult> GenerateImageAsync(string prompt, string size, CancellationToken ct);
+}
 
 /// <summary>أي مزوّد ذكاء اصطناعي. التطبيق ما بيحكي مع مزوّد مباشرة؛ بس عبر IAiRouter.</summary>
 public interface IAiProvider
@@ -61,5 +73,6 @@ public interface IAiRouter
 {
     Task<AiResult> RunAsync(AiRequest request, CancellationToken ct);
     IAsyncEnumerable<string> StreamAsync(AiRequest request, CancellationToken ct);
+    Task<ImageResult> GenerateImageAsync(string prompt, string size, CancellationToken ct);
     IReadOnlyList<(string Name, bool Configured, AiCapabilities Capabilities)> Providers();
 }

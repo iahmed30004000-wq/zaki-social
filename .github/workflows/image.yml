@@ -134,7 +134,7 @@ jobs:
             -e 'Workers__RetryDelaysSeconds=1,1' \
             -e 'Storage__Endpoint=http://127.0.0.1:9000' -e 'Storage__AccessKey=ci-minio' -e 'Storage__SecretKey=ci-minio-password-not-used' -e 'Storage__Bucket=zaki-media' \
             -e 'Ai__Claude__ApiKey=ci-claude-key' -e 'Ai__Claude__Model=claude-ci' -e 'Ai__Claude__BaseUrl=http://127.0.0.1:9090/claude' \
-            -e 'Ai__OpenAi__ApiKey=ci-openai-key' -e 'Ai__OpenAi__Model=gpt-ci' -e 'Ai__OpenAi__BaseUrl=http://127.0.0.1:9090/openai' \
+            -e 'Ai__OpenAi__ApiKey=ci-openai-key' -e 'Ai__OpenAi__Model=gpt-ci' -e 'Ai__OpenAi__ImageModel=img-ci' -e 'Ai__OpenAi__BaseUrl=http://127.0.0.1:9090/openai' \
             -e 'Ai__Local__Model=local-ci' -e 'Ai__Local__BaseUrl=http://127.0.0.1:9090/local' \
             -e 'Ai__MonthlyTokenLimit=2000' \
             -e 'Facebook__AppId=ci-app-id' \
@@ -182,6 +182,9 @@ jobs:
 
       - name: الوسائط (رفع، معالجة FFmpeg، نشر صور وفيديو)
         run: bash scripts/ci-media-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
+
+      - name: توليد الصور بالذكاء الاصطناعي والاعتماد البشري
+        run: bash scripts/ci-image-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 
       - name: ربط فيسبوك وتشفير التوكنات (مع خادم تجريبي)
         env:

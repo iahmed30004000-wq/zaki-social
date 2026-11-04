@@ -21,7 +21,7 @@ public sealed record PromptRunResult(string Text, string Provider, string Model,
 public sealed partial class PromptService(AppDbContext db, ITenantContext tenant, IAiRouter ai)
 {
     private static readonly string[] Tasks =
-        [AiTasks.Caption, AiTasks.Ideas, AiTasks.Rewrite, AiTasks.Analysis, AiTasks.Classify, AiTasks.Hashtags, AiTasks.Summarize, AiTasks.Reply];
+        [AiTasks.Caption, AiTasks.Ideas, AiTasks.Rewrite, AiTasks.Analysis, AiTasks.Classify, AiTasks.Hashtags, AiTasks.Summarize, AiTasks.Reply, AiTasks.Image];
     private static readonly string[] Ais = [AiProviders.Claude, AiProviders.OpenAi, AiProviders.Local];
 
     [GeneratedRegex(@"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")]
@@ -136,8 +136,10 @@ public sealed partial class PromptService(AppDbContext db, ITenantContext tenant
     /// <summary>مساحة جديدة بدون أي برومبت = نزرع المكتبة الجاهزة مرة وحدة.</summary>
     private async Task EnsureSeededAsync(CancellationToken ct)
     {
-        if (await db.Prompts.AnyAsync(p => p.WorkspaceId == Workspace, ct)) return;
-        foreach (var s in PromptSeeds.All)
+        var existing = await db.Prompts.Where(p => p.WorkspaceId == Workspace).Select(p => p.Name).ToListAsync(ct);
+        var missing = PromptSeeds.All.Where(s => !existing.Contains(s.Name)).ToList();
+        if (missing.Count == 0) return;
+        foreach (var s in missing)
         {
             var prompt = NewPrompt(s.Name, s.Category, s.Task, s.Body, s.PreferredAi, null);
             db.Prompts.Add(prompt);
@@ -152,6 +154,16 @@ public sealed partial class PromptService(AppDbContext db, ITenantContext tenant
             // طلبين بنفس اللحظة زرعوا سوا: الفريد (مساحة، اسم) بيمنع التكرار، والثاني بيلقى الموجود.
             db.ChangeTracker.Clear();
         }
+    }
+
+    /// <summary>بيعبّي برومبت بالاسم بدون تشغيله (للصور: النص المعبّى هو وصف الصورة).</summary>
+    public async Task<string> RenderByNameAsync(string name, IReadOnlyDictionary<string, string>? values, CancellationToken ct)
+    {
+        await EnsureSeededAsync(ct);
+        var p = await db.Prompts.FirstOrDefaultAsync(x => x.WorkspaceId == Workspace && x.Name == name, ct)
+                ?? throw new AuthException(404, "prompt_not_found");
+        if (!p.IsActive) throw new AuthException(409, "prompt_inactive");
+        return Render(p.Body, values);
     }
 
     private Prompt NewPrompt(string name, string? category, string task, string body, string? preferredAi, Guid? userId) => new()

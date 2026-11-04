@@ -64,6 +64,29 @@ public sealed class AiRouter(
         throw new AuthException(502, "ai_unavailable");
     }
 
+    /// <summary>توليد صورة: أول مزوّد صور مفعّل (OpenAI ثم الداخلي)، مع تحويل تلقائي، وتسجيل الاستهلاك.</summary>
+    public async Task<ImageResult> GenerateImageAsync(string prompt, string size, CancellationToken ct)
+    {
+        await EnforceQuotaAsync(ct);
+        var order = new[] { AiProviders.OpenAi, AiProviders.Local };
+        var candidates = order.Select(n => providers.OfType<IImageProvider>().FirstOrDefault(p => p.Name == n)).Where(p => p is { ImageConfigured: true }).Cast<IImageProvider>().ToList();
+        if (candidates.Count == 0) throw new AuthException(503, "image_not_configured");
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            try
+            {
+                var image = await candidates[i].GenerateImageAsync(prompt, size, ct);
+                await RecordAsync(AiTasks.Image, new AiResult("", image.Provider, image.Model, prompt.Length / 4, 0, i > 0), ct);
+                return image;
+            }
+            catch (Exception ex) when (IsProviderFailure(ex, ct))
+            {
+                logger.LogWarning("image provider {Provider} failed ({Error}); trying next", candidates[i].Name, ex.GetType().Name);
+            }
+        }
+        throw new AuthException(502, "ai_unavailable");
+    }
+
     public async IAsyncEnumerable<string> StreamAsync(AiRequest request, [EnumeratorCancellation] CancellationToken ct)
     {
         await EnforceQuotaAsync(ct);
