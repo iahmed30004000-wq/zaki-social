@@ -11,10 +11,10 @@ import { cn } from "@/lib/utils";
 // وحدات المنصة. الجاهزة تفتح؛ الباقي بتنبني بالخطوات الجاية.
 export const modules = [
   { href: "/app", label: "الرئيسية", ready: true },
-  { href: "/app/accounts", label: "إدارة الحسابات", step: 4 },
-  { href: "/app/composer", label: "المُؤلِّف", step: 5 },
+  { href: "/app/accounts", label: "إدارة الحسابات", ready: true },
+  { href: "/app/composer", label: "المُؤلِّف", ready: true },
   { href: "/app/calendar", label: "التقويم", step: 8 },
-  { href: "/app/prompts", label: "مركز البرومبتات", step: 7 },
+  { href: "/app/prompts", label: "مركز البرومبتات", ready: true },
   { href: "/app/automations", label: "الأتمتة", step: 13 },
   { href: "/app/analytics", label: "التحليلات", step: 14 },
   { href: "/app/media", label: "مكتبة الوسائط", step: 9 },
