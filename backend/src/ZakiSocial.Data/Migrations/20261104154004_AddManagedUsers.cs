@@ -23,6 +23,10 @@ namespace ZakiSocial.Data.Migrations
                 type: "boolean",
                 nullable: false,
                 defaultValue: false);
+
+            // دور التطبيق بيقرا من users أعمدة محددة بس (الهوية)، فنفتح عمود «المساحة المنشئة» لقائمة الأعضاء.
+            // كلمة السر وعلم «لازم يغيّر» بيضلوا مغلقين عنه.
+            migrationBuilder.Sql("GRANT SELECT (managed_by_workspace_id) ON users TO zaki_app;");
         }
 
         /// <inheritdoc />
