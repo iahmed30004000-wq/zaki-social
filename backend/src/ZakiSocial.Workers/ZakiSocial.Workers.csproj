@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.17" />
+    <PackageReference Include="Hangfire.Redis.StackExchange" Version="1.9.4" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\ZakiSocial.Core\ZakiSocial.Core.csproj" />
     <ProjectReference Include="..\ZakiSocial.Infrastructure\ZakiSocial.Infrastructure.csproj" />
   </ItemGroup>

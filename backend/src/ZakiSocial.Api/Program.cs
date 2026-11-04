@@ -3,11 +3,13 @@ using ZakiSocial.Core.Health;
 using ZakiSocial.Infrastructure;
 using ZakiSocial.Infrastructure.Auth;
 using ZakiSocial.Integrations;
+using ZakiSocial.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddZakiInfrastructure(builder.Configuration);
 builder.Services.AddZakiAuth(builder.Configuration);
 builder.Services.AddZakiIntegrations(builder.Configuration);
+builder.Services.AddZakiWorkers(builder.Configuration);
 
 var app = builder.Build();
 
@@ -40,5 +42,6 @@ app.MapGet("/api/health", Health);
 app.MapAuthEndpoints();
 app.MapWorkspaceEndpoints();
 app.MapAccountEndpoints();
+app.MapPostEndpoints();
 
 app.Run();
