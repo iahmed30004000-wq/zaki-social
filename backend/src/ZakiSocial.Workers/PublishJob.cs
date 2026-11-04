@@ -107,11 +107,11 @@ public sealed class PublishJob(
             target.Error = null;
             logger.LogInformation("published target {Target} on {Platform}", targetId, account.Platform);
         }
-        catch (Exception ex) when (ex is PlatformException or HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             var delays = Delays();
             // نسجّل الرسالة المختصرة بس (بدون توكنات).
-            target.Error = Truncate(ex is PlatformException pe ? $"{pe.Status}: {pe.Message}" : ex.GetType().Name);
+            target.Error = Truncate(ex is PlatformException pe ? $"{pe.Status}: {pe.Message}" : Sanitize($"{ex.GetType().Name}: {ex.Message}"));
             if (ex is PlatformException { Status: 401 } && account is not null) account.Status = "expired";
             if (attempt <= delays.Length && !IsPermanent(ex))
             {
@@ -147,6 +147,9 @@ public sealed class PublishJob(
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(s => TimeSpan.FromSeconds(double.Parse(s, System.Globalization.CultureInfo.InvariantCulture)))
             .ToArray();
+
+    /// <summary>أي خطأ غير متوقع بيتسجّل بالهدف (ما بيضل عالق)، بعد إخفاء بيانات الدخول من أي عنوان.</summary>
+    private static string Sanitize(string s) => System.Text.RegularExpressions.Regex.Replace(s, "://[^/@\s]*@", "://***@");
 
     private static string Truncate(string s) => s.Length <= 300 ? s : s[..300];
 }
