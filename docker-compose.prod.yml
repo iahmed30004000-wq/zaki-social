@@ -56,6 +56,7 @@ services:
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=zaki_social;Username=zaki;Password=${SERVICE_PASSWORD_POSTGRES};Timeout=3;Command Timeout=3
       Redis__ConnectionString: redis:6379
       Database__AutoMigrate: "true"
+      Security__AuditEndpoints: "true"
       Jwt__Key: ${SERVICE_PASSWORD_64_JWT}
       Encryption__Key: ${SERVICE_PASSWORD_64_ENC}
       App__PublicUrl: ${APP_PUBLIC_URL:-https://social.zakiai.io}
@@ -84,6 +85,37 @@ services:
       Storage__SecretKey: ${SERVICE_PASSWORD_MINIO}
       Storage__Bucket: zaki-media
 
+  # نسخ احتياطي يومي: القاعدة (pg_dump) وملفات الوسائط (tar). الاحتفاظ بآخر 14 يوم للقاعدة و7 للوسائط.
+  # النسخ على وحدة التخزين backups بنفس السيرفر: انسخها لمكان تاني (راجع docs/DEPLOY_AR.md).
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: zaki
+      PGPASSWORD: ${SERVICE_PASSWORD_POSTGRES}
+      PGDATABASE: zaki_social
+      BACKUP_KEEP_DAYS: "14"
+    volumes:
+      - backups:/backups
+      - miniodata:/media:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        while true; do
+          d=$$(date -u +%Y%m%d-%H%M%S)
+          pg_dump -Fc -f /backups/db-$$d.dump
+          tar -czf /backups/media-$$d.tar.gz -C /media .
+          find /backups -name 'db-*.dump' -mtime +$$BACKUP_KEEP_DAYS -delete
+          find /backups -name 'media-*.tar.gz' -mtime +7 -delete
+          echo "backup done $$d"
+          sleep 86400
+        done
+
   frontend:
     image: ghcr.io/iahmed30004000-wq/zaki-social-frontend:main
     restart: unless-stopped
@@ -105,8 +137,12 @@ services:
         cat > /etc/caddy/Caddyfile <<'EOF'
         {
           auto_https off
+          servers {
+            trusted_proxies static private_ranges
+          }
         }
         :80 {
+          header Strict-Transport-Security "max-age=31536000"
           handle /api/* {
             reverse_proxy backend:8080
           }
@@ -121,3 +157,4 @@ volumes:
   pgdata:
   redisdata:
   miniodata:
+  backups:

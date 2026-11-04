@@ -16,6 +16,8 @@ public sealed class RedisConnection(IConfiguration configuration)
         return ConnectionMultiplexer.ConnectAsync(options);
     });
 
+    public async Task<IDatabase> DatabaseAsync() => (await _mux.Value).GetDatabase();
+
     public async Task PingAsync()
     {
         var mux = await _mux.Value;

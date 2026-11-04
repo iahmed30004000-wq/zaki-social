@@ -35,7 +35,8 @@ public sealed class AuthService(
     AppDbContext db,
     ITenantContext tenant,
     JwtService jwt,
-    IOptions<JwtOptions> jwtOptions)
+    IOptions<JwtOptions> jwtOptions,
+    LoginThrottle throttle)
 {
     private static readonly PasswordHasher<User> Hasher = new();
     private const int MinPasswordLength = 10;
@@ -87,6 +88,7 @@ public sealed class AuthService(
     {
         tenant.UseSystem();
         email = NormalizeEmail(email);
+        await throttle.CheckAsync(email); // حماية من التخمين
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
         // نفس الرسالة لو الإيميل أو كلمة السر غلط، لحتى ما نكشف مين مسجّل.
         if (user is null) throw new AuthException(401, "invalid_credentials");

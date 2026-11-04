@@ -1,0 +1,40 @@
+# مراقبة اختيارية: Loki (تخزين السجلات) + Promtail (بيجمع سجلات كل حاويات السيرفر) + Grafana (بحث ولوحات).
+# التشغيل: docker compose -f deploy/monitoring/docker-compose.yml up -d
+# غرافانا على 127.0.0.1:3001 فقط (افتحها بنفق SSH). كلمة سر الأدمن من GRAFANA_ADMIN_PASSWORD (اكتبها إنت بملف .env).
+name: zaki-monitoring
+
+services:
+  loki:
+    image: grafana/loki:3.2.0
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - lokidata:/loki
+
+  promtail:
+    image: grafana/promtail:3.2.0
+    restart: unless-stopped
+    depends_on:
+      - loki
+    command: ["-config.file=/etc/promtail/promtail.yml"]
+    volumes:
+      - ./promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    depends_on:
+      - loki
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?اكتب كلمة سر غرافانا}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - ./grafana-datasource.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
+      - grafanadata:/var/lib/grafana
+
+volumes:
+  lokidata:
+  grafanadata:

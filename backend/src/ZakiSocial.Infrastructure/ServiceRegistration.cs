@@ -24,6 +24,8 @@ public static class ServiceRegistration
         });
 
         services.AddSingleton<RedisConnection>();
+        services.AddSingleton<ZakiSocial.Infrastructure.Auth.RateLimiter>();
+        services.AddSingleton<ZakiSocial.Infrastructure.Auth.LoginThrottle>();
         services.AddScoped<IHealthService, HealthService>();
         services.AddScoped<ZakiSocial.Infrastructure.Posts.PostService>();
         services.AddSingleton<ZakiSocial.Core.Media.IMediaStorage, ZakiSocial.Infrastructure.Media.S3MediaStorage>();
