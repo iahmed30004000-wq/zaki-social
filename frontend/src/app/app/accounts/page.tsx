@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { api, errorText } from "@/lib/api";
 
+type PlatformInfo = { platform: string; configured: boolean };
 type Account = { id: string; platform: string; displayName: string; remoteUserId: string; status: string };
 
 const platformNames: Record<string, string> = {
@@ -32,6 +33,7 @@ function AccountsInner() {
   const canEdit = session?.workspace.role !== "viewer";
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [error, setError] = useState("");
+  const [platforms, setPlatforms] = useState<PlatformInfo[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -43,6 +45,7 @@ function AccountsInner() {
 
   useEffect(() => {
     load();
+    api<PlatformInfo[]>("/api/accounts/platforms").then(setPlatforms).catch(() => undefined);
   }, [load]);
 
   async function connect(platform: string) {
@@ -73,7 +76,15 @@ function AccountsInner() {
     <div className="max-w-3xl space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">إدارة الحسابات</h1>
-        {canEdit && <Button onClick={() => connect("facebook")}>ربط حساب فيسبوك</Button>}
+        {canEdit && (
+          <div className="flex flex-wrap gap-2">
+            {platforms.map((p) => (
+              <Button key={p.platform} variant={p.configured ? "default" : "outline"} onClick={() => connect(p.platform)} title={p.configured ? "" : "المنصة غير مفعّلة بإعدادات السيرفر"}>
+                ربط {platformNames[p.platform] ?? p.platform}
+              </Button>
+            ))}
+          </div>
+        )}
       </header>
 
       {connected && <p className="rounded-lg bg-muted p-3 text-sm text-ok">تم ربط {connected} حساب/صفحة بنجاح.</p>}

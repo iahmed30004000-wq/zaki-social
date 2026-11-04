@@ -25,6 +25,9 @@ public sealed class AccountService(
             .Select(a => new AccountDto(a.Id, a.Platform, a.DisplayName, a.RemoteUserId, a.Status, a.TokenExpiry))
             .ToListAsync(ct);
 
+    public IReadOnlyList<(string Platform, bool Configured)> Platforms() =>
+        connectors.All.Select(c => (c.Platform, c.IsConfigured)).ToList();
+
     public string ConnectUrl(string platform, string state, string redirectUri)
     {
         var connector = connectors.Get(platform);
@@ -33,11 +36,11 @@ public sealed class AccountService(
     }
 
     /// <summary>بيربط كل حسابات المنصة اللي رجعت (مثلاً كل صفحات فيسبوك) ويحدّث الموجود.</summary>
-    public async Task<int> ConnectAsync(string platform, string code, string redirectUri, CancellationToken ct)
+    public async Task<int> ConnectAsync(string platform, string code, string redirectUri, string state, CancellationToken ct)
     {
         var connector = connectors.Get(platform);
         if (!connector.IsConfigured) throw new AuthException(503, $"{platform}_not_configured");
-        var remote = await connector.ConnectAsync(code, redirectUri, ct);
+        var remote = await connector.ConnectAsync(code, redirectUri, state, ct);
 
         foreach (var a in remote)
         {

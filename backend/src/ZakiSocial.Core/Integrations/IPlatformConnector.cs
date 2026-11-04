@@ -12,11 +12,14 @@ public sealed record ConnectedAccount(
 public sealed record AccountCredentials(Guid AccountId, string RemoteUserId, string AccessToken, string? RefreshToken);
 
 /// <summary>ملف وسائط جاهز للرفع للمنصة (النسخة الموحّدة بعد معالجة FFmpeg).</summary>
-public sealed record MediaFile(string Kind, string ContentType, string FileName, byte[] Data);
+public sealed record MediaFile(string Kind, string ContentType, string FileName, byte[] Data, string? PublicUrl = null);
 
 public sealed record PostContent(string Text, IReadOnlyList<MediaFile> Media);
 
 public sealed record PublishResult(string RemoteId);
+
+/// <summary>توكن مجدَّد (التوكنات بتتشفّر قبل التخزين).</summary>
+public sealed record RefreshedToken(string AccessToken, string? RefreshToken, DateTimeOffset? ExpiresAt);
 
 public sealed record RemoteComment(string Id, string AuthorName, string Text, DateTimeOffset CreatedAt);
 
@@ -37,7 +40,11 @@ public interface IPlatformConnector
     bool IsConfigured { get; }
 
     string BuildAuthUrl(string state, string redirectUri);
-    Task<IReadOnlyList<ConnectedAccount>> ConnectAsync(string code, string redirectUri, CancellationToken ct);
+    /// <summary>state بيرجع من المنصة؛ بعض المنصات (X) بتشتق منه PKCE.</summary>
+    Task<IReadOnlyList<ConnectedAccount>> ConnectAsync(string code, string redirectUri, string state, CancellationToken ct);
+
+    /// <summary>تجديد التوكن قبل انتهائه (تيك توك، X، يوتيوب...). null = ما في تجديد لهالمنصة.</summary>
+    Task<RefreshedToken?> RefreshAsync(AccountCredentials account, CancellationToken ct) => Task.FromResult<RefreshedToken?>(null);
     Task<PublishResult> PublishAsync(AccountCredentials account, PostContent content, CancellationToken ct);
     Task<IReadOnlyDictionary<string, double>> FetchMetricsAsync(AccountCredentials account, string remoteId, CancellationToken ct);
     Task<IReadOnlyList<RemoteComment>> FetchCommentsAsync(AccountCredentials account, string remoteId, CancellationToken ct);
@@ -47,4 +54,5 @@ public interface IPlatformConnector
 public interface IConnectorRegistry
 {
     IPlatformConnector Get(string platform);
+    IReadOnlyList<IPlatformConnector> All { get; }
 }

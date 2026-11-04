@@ -38,14 +38,18 @@ class Handler(BaseHTTPRequestHandler):
             import re
             fields = dict(re.findall(r'name="?([^";\r\n]+)"?[^\r\n]*\r\n(?:[A-Za-z-]+:[^\r\n]*\r\n)*\r\n([^\r]*)\r\n', data.decode("utf-8", "replace")))
             return {"_multipart": True, "size": n, **fields}
+        if ctype.startswith("video/") or ctype.startswith("image/"):
+            return {"_binary": True, "size": n}
         raw = data.decode()
         if "json" in ctype and raw:
             return json.loads(raw)
         return {k: v[0] for k, v in urllib.parse.parse_qs(raw).items()}
 
-    def _send(self, obj, status=200):
+    def _send(self, obj, status=200, headers=None):
         data = json.dumps(obj).encode()
         self.send_response(status)
+        for k, v in (headers or {}).items():
+            self.send_header(k, v)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
@@ -57,7 +61,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _record(self, body):
         with LOCK:
-            REQUESTS.append({"method": self.command, "path": self.path.split("?")[0], "bearer": self._bearer(), "body": body})
+            REQUESTS.append({"method": self.command, "path": self.path.split("?")[0], "query": self.path.partition("?")[2], "bearer": self._bearer(),
+                             "basic": self.headers.get("Authorization", "").startswith("Basic "), "version": self.headers.get("LinkedIn-Version"), "body": body})
 
     def do_GET(self):
         path = self.path.split("?")[0]
@@ -65,6 +70,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(REQUESTS)
         self._record({})
         self._route("GET", path, {})
+
+    def do_PUT(self):
+        body = self._body()
+        path = self.path.split("?")[0]
+        self._record(body)
+        self._route("PUT", path, body)
 
     def do_POST(self):
         body = self._body()
@@ -87,12 +98,14 @@ class Handler(BaseHTTPRequestHandler):
             if token != "LONG_USER_TOKEN":
                 return self._send({"error": {"message": "bad token"}}, 401)
             return self._send({"data": [
-                {"id": "111", "name": "Page One", "access_token": "PAGETOKEN_ONE"},
+                {"id": "111", "name": "Page One", "access_token": "PAGETOKEN_ONE", "instagram_business_account": {"id": "ig111", "username": "page_one_ig"}},
                 {"id": "222", "name": "Page Two", "access_token": "PAGETOKEN_TWO"},
             ]})
         if method == "POST" and path.endswith("/feed"):
             if not token.startswith("PAGETOKEN_"):
                 return self._send({"error": {"message": "bad page token"}}, 401)
+            if "BADREQ" in body.get("message", ""):
+                return self._send({"error": {"message": "simulated bad request"}}, 400)
             if "FAIL" in body.get("message", ""):
                 return self._send({"error": {"message": "simulated failure"}}, 500)
             return self._send({"id": path.split("/")[1] + "_9001"})
@@ -100,6 +113,73 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"data": [{"id": "c1", "from": {"name": "Ali"}, "message": "كم السعر؟", "created_time": "2026-11-04T10:00:00+0000"}]})
         if method == "POST" and path.endswith("/comments"):
             return self._send({"id": "reply1"})
+        # ---- إنستغرام ----
+        if method == "GET" and path.startswith("/container_"):
+            return self._send({"status_code": "FINISHED", "id": path[1:]})
+        if method == "POST" and path.startswith("/ig111/") and path.endswith("/media"):
+            if not token.startswith("PAGETOKEN_"):
+                return self._send({"error": {"message": "bad page token"}}, 401)
+            return self._send({"id": "container_%d" % len(REQUESTS)})
+        if method == "POST" and path == "/ig111/media_publish":
+            return self._send({"id": "igpost_1"})
+        if method == "POST" and path.endswith("/replies"):
+            return self._send({"id": "igreply"})
+        # ---- تيك توك ----
+        if path == "/tiktok/v2/oauth/token/" and method == "POST":
+            if body.get("grant_type") == "refresh_token":
+                if body.get("refresh_token") != "TT_REFRESH_1":
+                    return self._send({"error": "invalid_grant", "error_description": "bad refresh"}, 400)
+                return self._send({"access_token": "TT_ACCESS_2", "refresh_token": "TT_REFRESH_2", "expires_in": 86400, "open_id": "tt_open_1"})
+            if body.get("code") != "good-code":
+                return self._send({"error": "invalid_grant", "error_description": "bad code"}, 400)
+            return self._send({"access_token": "TT_ACCESS_1", "refresh_token": "TT_REFRESH_1", "expires_in": 1, "open_id": "tt_open_1"})
+        if path == "/tiktok/v2/user/info/" and method == "GET":
+            return self._send({"data": {"user": {"open_id": "tt_open_1", "display_name": "TT Shop"}}, "error": {"code": "ok"}})
+        if path == "/tiktok/v2/post/publish/video/init/" and method == "POST":
+            if token != "TT_ACCESS_2":
+                return self._send({"error": {"code": "access_token_invalid", "message": "token expired"}}, 401)
+            return self._send({"data": {"publish_id": "pub1", "upload_url": "http://127.0.0.1:9090/tiktok/upload/pub1"}, "error": {"code": "ok"}})
+        if path == "/tiktok/upload/pub1" and method == "PUT":
+            return self._send({})
+        if path == "/tiktok/v2/post/publish/status/fetch/" and method == "POST":
+            return self._send({"data": {"status": "PUBLISH_COMPLETE", "publicaly_available_post_id": ["7001"]}, "error": {"code": "ok"}})
+        # ---- X ----
+        if path == "/x/2/oauth2/token" and method == "POST":
+            if body.get("grant_type") == "refresh_token":
+                return self._send({"access_token": "X_ACCESS_2", "refresh_token": "X_REFRESH_2", "expires_in": 7200})
+            if body.get("code") != "good-code" or not body.get("code_verifier"):
+                return self._send({"error": "invalid_request", "error_description": "bad code or verifier"}, 400)
+            return self._send({"access_token": "X_ACCESS_1", "refresh_token": "X_REFRESH_1", "expires_in": 7200})
+        if path == "/x/2/users/me" and method == "GET":
+            return self._send({"data": {"id": "x_user_1", "username": "zaki_shop"}})
+        if path == "/x/2/media/upload" and method == "POST":
+            return self._send({"data": {"id": "x_media_1"}})
+        if path == "/x/2/tweets" and method == "POST":
+            if not token.startswith("X_ACCESS_"):
+                return self._send({"title": "Unauthorized"}, 401)
+            return self._send({"data": {"id": "x_tweet_1", "text": body.get("text", "")}})
+        # ---- يوتيوب ----
+        if path == "/google/token" and method == "POST":
+            if body.get("code") != "good-code":
+                return self._send({"error": "invalid_grant", "error_description": "bad code"}, 400)
+            return self._send({"access_token": "YT_ACCESS_1", "refresh_token": "YT_REFRESH_1", "expires_in": 3600})
+        if path == "/yt/youtube/v3/channels" and method == "GET":
+            return self._send({"items": [{"id": "UCfake1", "snippet": {"title": "Zaki Channel"}}]})
+        if path == "/yt/upload/youtube/v3/videos" and method == "POST":
+            if not token.startswith("YT_ACCESS_"):
+                return self._send({"error": {"message": "bad token"}}, 401)
+            return self._send({}, 200, {"Location": "http://127.0.0.1:9090/yt/upload/session1"})
+        if path == "/yt/upload/session1" and method == "PUT":
+            return self._send({"id": "yt_vid_1"})
+        # ---- لينكدإن ----
+        if path == "/li/oauth/v2/accessToken" and method == "POST":
+            if body.get("code") != "good-code":
+                return self._send({"error": "invalid_request", "error_description": "bad code"}, 400)
+            return self._send({"access_token": "LI_ACCESS_1", "expires_in": 5184000})
+        if path == "/li/v2/userinfo" and method == "GET":
+            return self._send({"sub": "li_user_1", "name": "Zaki LI"})
+        if path == "/li/rest/posts" and method == "POST":
+            return self._send({}, 201, {"x-restli-id": "urn:li:share:9001"})
         if method == "GET" and path.count("/") == 1:
             return self._send({"reactions": {"summary": {"total_count": 7}}, "comments": {"summary": {"total_count": 2}}, "shares": {"count": 1}})
         if method == "POST" and path.endswith("/photos"):
