@@ -1,14 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ZakiSocial.Core.Health;
+using ZakiSocial.Core.Tenancy;
 using ZakiSocial.Data;
 
 namespace ZakiSocial.Infrastructure;
 
-public sealed class HealthService(AppDbContext db, RedisConnection redis, ILogger<HealthService> logger) : IHealthService
+public sealed class HealthService(AppDbContext db, RedisConnection redis, ITenantContext tenant, ILogger<HealthService> logger) : IHealthService
 {
     public async Task<HealthReport> CheckAsync(CancellationToken ct)
     {
+        tenant.UseSystem(); // الفحص ما إله علاقة بمساحة، وقاعدة جديدة ما فيها دور zaki_app بعد
         var database = await ProbeAsync("database", async () => await db.Database.CanConnectAsync(ct));
         var cache = await ProbeAsync("redis", async () =>
         {

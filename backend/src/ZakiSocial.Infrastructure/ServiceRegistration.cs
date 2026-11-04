@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ZakiSocial.Core.Health;
+using ZakiSocial.Core.Tenancy;
 using ZakiSocial.Data;
+using ZakiSocial.Infrastructure.Tenancy;
 
 namespace ZakiSocial.Infrastructure;
 
@@ -12,7 +14,15 @@ public static class ServiceRegistration
     {
         // الاتصال يجي من متغيرات البيئة فقط (ConnectionStrings__Postgres). ممنوع أي سر بالكود.
         var connection = configuration.GetConnectionString("Postgres") ?? "Host=localhost;Timeout=3";
-        services.AddDbContext<AppDbContext>(options => DbOptions.Configure(options, connection));
+
+        services.AddScoped<ITenantContext, TenantContext>();
+        services.AddScoped<TenantConnectionInterceptor>();
+        services.AddDbContext<AppDbContext>((sp, options) =>
+        {
+            DbOptions.Configure(options, connection);
+            options.AddInterceptors(sp.GetRequiredService<TenantConnectionInterceptor>());
+        });
+
         services.AddSingleton<RedisConnection>();
         services.AddScoped<IHealthService, HealthService>();
         return services;
@@ -31,6 +41,7 @@ public static class ServiceRegistration
             try
             {
                 await using var scope = services.CreateAsyncScope();
+                scope.ServiceProvider.GetRequiredService<ITenantContext>().UseSystem();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 await db.Database.MigrateAsync();
                 return;

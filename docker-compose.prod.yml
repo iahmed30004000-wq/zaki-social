@@ -54,6 +54,7 @@ services:
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=zaki_social;Username=zaki;Password=${SERVICE_PASSWORD_POSTGRES};Timeout=3;Command Timeout=3
       Redis__ConnectionString: redis:6379
       Database__AutoMigrate: "true"
+      Jwt__Key: ${SERVICE_PASSWORD_64_JWT}
 
   frontend:
     image: ghcr.io/iahmed30004000-wq/zaki-social-frontend:main
