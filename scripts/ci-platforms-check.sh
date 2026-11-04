@@ -34,6 +34,7 @@ connect() { # connect <platform> -> بيعمل رابط الربط ثم الرج
   grep -q "connected=" /tmp/redirect || fail "$1 connect must succeed: $(cat /tmp/redirect)"
 }
 
+connect facebook
 echo "-- إنستغرام: الربط بيجيب حساب إنستغرام المربوط بصفحة فيسبوك"
 connect instagram
 case "$URL" in *instagram_content_publish*) ;; *) fail "instagram scopes missing: $URL";; esac
