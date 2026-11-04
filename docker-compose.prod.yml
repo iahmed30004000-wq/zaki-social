@@ -55,6 +55,10 @@ services:
       Redis__ConnectionString: redis:6379
       Database__AutoMigrate: "true"
       Jwt__Key: ${SERVICE_PASSWORD_64_JWT}
+      Encryption__Key: ${SERVICE_PASSWORD_64_ENC}
+      App__PublicUrl: ${APP_PUBLIC_URL:-https://social.zakiai.io}
+      Facebook__AppId: ${FACEBOOK_APP_ID:-}
+      Facebook__AppSecret: ${FACEBOOK_APP_SECRET:-}
 
   frontend:
     image: ghcr.io/iahmed30004000-wq/zaki-social-frontend:main
