@@ -25,6 +25,7 @@ public static class ServiceRegistration
 
         services.AddSingleton<RedisConnection>();
         services.AddScoped<IHealthService, HealthService>();
+        services.AddScoped<ZakiSocial.Infrastructure.Posts.PostService>();
         return services;
     }
 

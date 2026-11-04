@@ -126,6 +126,7 @@ jobs:
             -e 'Jwt__Key=ci-only-signing-key-not-used-anywhere-0123456789' \
             -e 'Encryption__Key=ci-only-encryption-key-not-used-anywhere-0123456789' \
             -e 'App__PublicUrl=http://127.0.0.1:8080' \
+            -e 'Workers__RetryDelaysSeconds=1,1' \
             -e 'Facebook__AppId=ci-app-id' \
             -e 'Facebook__AppSecret=ci-app-secret' \
             -e 'Facebook__GraphBase=http://127.0.0.1:9090' \
@@ -156,6 +157,9 @@ jobs:
 
           page=$(curl -fsS http://127.0.0.1:3000/)
           echo "$page" | grep -q 'dir="rtl"' || { echo "::error::landing page is not RTL"; exit 1; }
+
+      - name: النشر عبر الطابور (ريديس + عامل) مع إعادة المحاولة
+        run: bash scripts/ci-publish-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 
       - name: ربط فيسبوك وتشفير التوكنات (مع خادم تجريبي)
         env:
