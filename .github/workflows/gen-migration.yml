@@ -33,6 +33,7 @@ jobs:
           dotnet ef migrations add "$name" \
             --project src/ZakiSocial.Data --startup-project src/ZakiSocial.Api \
             --output-dir Migrations
+          python3 ../scripts/add_rls_to_migration.py src/ZakiSocial.Data/Migrations/*_$name.cs
       - name: Commit
         run: |
           set -eu

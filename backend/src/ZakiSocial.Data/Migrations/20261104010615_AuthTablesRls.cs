@@ -10,7 +10,7 @@ namespace ZakiSocial.Data.Migrations;
 /// ويطبّقها على جدول الدعوات. جدول refresh_tokens مش تابع لمساحة وما بنعطي الدور zaki_app أي صلاحية عليه.
 /// </summary>
 [DbContext(typeof(AppDbContext))]
-[Migration("20261104235900_AuthTablesRls")]
+[Migration("20261104010615_AuthTablesRls")]
 public partial class AuthTablesRls : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

@@ -22,6 +22,63 @@ namespace ZakiSocial.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("ZakiSocial.Core.Entities.AiUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<bool>("FellBack")
+                        .HasColumnType("boolean")
+                        .HasColumnName("fell_back");
+
+                    b.Property<int>("InputTokens")
+                        .HasColumnType("integer")
+                        .HasColumnName("input_tokens");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("model");
+
+                    b.Property<int>("OutputTokens")
+                        .HasColumnType("integer")
+                        .HasColumnName("output_tokens");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("Task")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("task");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ai_usage");
+
+                    b.HasIndex("WorkspaceId")
+                        .HasDatabaseName("ix_ai_usage_workspace_id");
+
+                    b.HasIndex("WorkspaceId", "CreatedAt")
+                        .HasDatabaseName("ix_ai_usage_workspace_id_created_at");
+
+                    b.ToTable("ai_usage", (string)null);
+                });
+
             modelBuilder.Entity("ZakiSocial.Core.Entities.AnalyticsSnapshot", b =>
                 {
                     b.Property<Guid>("Id")
@@ -900,6 +957,16 @@ namespace ZakiSocial.Data.Migrations
                         .HasName("pk_workspaces");
 
                     b.ToTable("workspaces", (string)null);
+                });
+
+            modelBuilder.Entity("ZakiSocial.Core.Entities.AiUsage", b =>
+                {
+                    b.HasOne("ZakiSocial.Core.Entities.Workspace", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_ai_usage_workspaces_workspace_id");
                 });
 
             modelBuilder.Entity("ZakiSocial.Core.Entities.AnalyticsSnapshot", b =>

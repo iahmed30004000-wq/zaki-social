@@ -86,6 +86,31 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({"id": "reply1"})
         if method == "GET" and path.count("/") == 1:
             return self._send({"reactions": {"summary": {"total_count": 7}}, "comments": {"summary": {"total_count": 2}}, "shares": {"count": 1}})
+        # ---- الذكاء الاصطناعي ----
+        if method == "POST" and path in ("/claude/v1/messages", "/openai/chat/completions", "/local/chat/completions"):
+            who = path.split("/")[1]
+            prompt = json.dumps(body.get("messages", []), ensure_ascii=False)
+            if who == "claude" and not self.headers.get("x-api-key"):
+                return self._send({"error": "no key"}, 401)
+            if who == "openai" and not token:
+                return self._send({"error": "no key"}, 401)
+            if who == "claude" and "CLAUDE_DOWN" in prompt:
+                return self._send({"error": "overloaded"}, 500)
+            usage_in, usage_out = (1500, 600) if "BIGUSAGE" in prompt else (5, 7)
+            text = who + " says hi"
+            if who != "claude" and body.get("stream"):
+                data = "".join("data: " + json.dumps({"choices": [{"delta": {"content": part}}]}) + "\n\n" for part in (who + " ", "streams ", "ok"))
+                data += "data: [DONE]\n\n"
+                raw = data.encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+                return
+            if who == "claude":
+                return self._send({"content": [{"type": "text", "text": text}], "usage": {"input_tokens": usage_in, "output_tokens": usage_out}})
+            return self._send({"choices": [{"message": {"content": text}}], "usage": {"prompt_tokens": usage_in, "completion_tokens": usage_out}})
         self._send({"error": {"message": "unknown route " + path}}, 404)
 
 

@@ -43,5 +43,6 @@ app.MapAuthEndpoints();
 app.MapWorkspaceEndpoints();
 app.MapAccountEndpoints();
 app.MapPostEndpoints();
+app.MapAiEndpoints();
 
 app.Run();

@@ -59,6 +59,13 @@ services:
       App__PublicUrl: ${APP_PUBLIC_URL:-https://social.zakiai.io}
       Facebook__AppId: ${FACEBOOK_APP_ID:-}
       Facebook__AppSecret: ${FACEBOOK_APP_SECRET:-}
+      Ai__Claude__ApiKey: ${ANTHROPIC_API_KEY:-}
+      Ai__Claude__Model: ${CLAUDE_MODEL:-claude-sonnet-5-5}
+      Ai__OpenAi__ApiKey: ${OPENAI_API_KEY:-}
+      Ai__OpenAi__BaseUrl: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      Ai__OpenAi__Model: ${OPENAI_MODEL:-gpt-4o}
+      Ai__Local__BaseUrl: ${LOCAL_LLM_ENDPOINT:-}
+      Ai__Local__Model: ${LOCAL_LLM_MODEL:-}
 
   frontend:
     image: ghcr.io/iahmed30004000-wq/zaki-social-frontend:main

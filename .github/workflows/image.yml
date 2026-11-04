@@ -127,6 +127,10 @@ jobs:
             -e 'Encryption__Key=ci-only-encryption-key-not-used-anywhere-0123456789' \
             -e 'App__PublicUrl=http://127.0.0.1:8080' \
             -e 'Workers__RetryDelaysSeconds=1,1' \
+            -e 'Ai__Claude__ApiKey=ci-claude-key' -e 'Ai__Claude__Model=claude-ci' -e 'Ai__Claude__BaseUrl=http://127.0.0.1:9090/claude' \
+            -e 'Ai__OpenAi__ApiKey=ci-openai-key' -e 'Ai__OpenAi__Model=gpt-ci' -e 'Ai__OpenAi__BaseUrl=http://127.0.0.1:9090/openai' \
+            -e 'Ai__Local__Model=local-ci' -e 'Ai__Local__BaseUrl=http://127.0.0.1:9090/local' \
+            -e 'Ai__MonthlyTokenLimit=2000' \
             -e 'Facebook__AppId=ci-app-id' \
             -e 'Facebook__AppSecret=ci-app-secret' \
             -e 'Facebook__GraphBase=http://127.0.0.1:9090' \
@@ -161,6 +165,9 @@ jobs:
       - name: النشر عبر الطابور (ريديس + عامل) مع إعادة المحاولة
         run: bash scripts/ci-publish-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 
+      - name: موجّه الذكاء الاصطناعي (توجيه، تحويل تلقائي، بيانات حسّاسة، حد الاستهلاك)
+        run: bash scripts/ci-ai-check.sh http://127.0.0.1:8080
+
       - name: ربط فيسبوك وتشفير التوكنات (مع خادم تجريبي)
         env:
           PGHOST: 127.0.0.1
@@ -183,8 +190,9 @@ jobs:
           tables=$(q -c "select count(*) from information_schema.tables where table_schema='public' and table_name in ('workspaces','users','memberships','social_accounts','posts','post_targets','media_assets','prompts','prompt_versions','analytics_snapshots','proxies','responder_rules','collected_data','app_logs','settings')")
           [ "$tables" = 15 ] || fail "expected 15 tables, found $tables"
 
-          rls=$(q -c "select count(*) from pg_tables where schemaname='public' and rowsecurity and tablename <> '__EFMigrationsHistory'")
-          [ "$rls" = 15 ] || fail "expected row level security on 15 tables, found $rls"
+          rls=$(q -c "select count(*) from pg_tables where schemaname='public' and rowsecurity and tablename <> 'workspaces'")
+          withws=$(q -c "select count(*) from information_schema.columns where table_schema='public' and column_name='workspace_id' and table_name <> 'refresh_tokens'")
+          [ "$rls" = "$withws" ] || fail "every table with workspace_id needs row level security ($rls of $withws)"
 
           tok=$(q -c "select count(*) from information_schema.columns where table_name='social_accounts' and column_name in ('enc_access_token','enc_refresh_token') and data_type='bytea'")
           [ "$tok" = 2 ] || fail "token columns must be bytea"

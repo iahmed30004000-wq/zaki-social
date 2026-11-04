@@ -170,6 +170,18 @@ internal static class ModelConfiguration
             e.HasIndex(x => new { x.WorkspaceId, x.Kind, x.CollectedAt });
         });
 
+        b.Entity<AiUsage>(e =>
+        {
+            e.ToTable("ai_usage");
+            Identity(e);
+            Tenant(e);
+            e.Property(x => x.Provider).IsRequired();
+            e.Property(x => x.Model).IsRequired();
+            e.Property(x => x.Task).IsRequired();
+            e.Property(x => x.CreatedAt).HasDefaultValueSql(Now);
+            e.HasIndex(x => new { x.WorkspaceId, x.CreatedAt });
+        });
+
         b.Entity<RefreshToken>(e =>
         {
             e.ToTable("refresh_tokens");
