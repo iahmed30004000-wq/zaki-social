@@ -9,7 +9,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: zaki
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ضع كلمة سر قاعدة البيانات}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
       POSTGRES_DB: zaki_social
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -36,8 +36,8 @@ services:
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-zaki_minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?ضع كلمة سر التخزين}
+      MINIO_ROOT_USER: ${SERVICE_USER_MINIO}
+      MINIO_ROOT_PASSWORD: ${SERVICE_PASSWORD_MINIO}
     volumes:
       - miniodata:/data
 
@@ -50,7 +50,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=zaki_social;Username=zaki;Password=${POSTGRES_PASSWORD};Timeout=3;Command Timeout=3
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=zaki_social;Username=zaki;Password=${SERVICE_PASSWORD_POSTGRES};Timeout=3;Command Timeout=3
       Redis__ConnectionString: redis:6379
 
   frontend:
