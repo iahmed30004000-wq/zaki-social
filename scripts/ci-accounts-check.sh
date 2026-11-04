@@ -3,6 +3,9 @@
 # الاستعمال: scripts/ci-accounts-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 set -eu
 
+# مهلة لكل نداء: ما بنقبل ينعلّق الفحص بلا نهاية
+curl() { command curl --connect-timeout 10 --max-time 60 "$@"; }
+
 BASE="${1:-http://127.0.0.1:8080}"
 FAKE="${2:-http://127.0.0.1:9090}"
 PASS="correct-horse-battery-staple"
