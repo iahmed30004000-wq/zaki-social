@@ -60,6 +60,24 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      # كل الصور الخارجية اللي بتحتاجها ملفات الدوكر لازم تكون موجودة وقابلة للسحب (صورة minio الرسمية انسحبت مرة).
+      - name: صور الملفات موجودة؟
+        env:
+          SERVICE_PASSWORD_POSTGRES: ci-not-a-secret
+          SERVICE_USER_MINIO: ci-not-a-secret
+          SERVICE_PASSWORD_MINIO: ci-not-a-secret
+        run: |
+          set -eu
+          for f in docker-compose.yml docker-compose.prod.yml; do
+            for img in $(docker compose -f "$f" config --images); do
+              case "$img" in
+                ghcr.io/*|zaki-social-*) continue ;;
+              esac
+              echo "فحص $img"
+              docker manifest inspect "$img" > /dev/null
+            done
+          done
+
       - name: بناء الخادم الخلفي
         uses: docker/build-push-action@v6
         with:
