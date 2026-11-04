@@ -209,6 +209,70 @@ namespace ZakiSocial.Data.Migrations
                     b.ToTable("collected_data", (string)null);
                 });
 
+            modelBuilder.Entity("ZakiSocial.Core.Entities.Invitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("code_hash");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("email");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid?>("InvitedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invited_by");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("role");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_invitations");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_invitations_code_hash");
+
+                    b.HasIndex("InvitedBy")
+                        .HasDatabaseName("ix_invitations_invited_by");
+
+                    b.HasIndex("WorkspaceId")
+                        .HasDatabaseName("ix_invitations_workspace_id");
+
+                    b.ToTable("invitations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_invitations_role", "role IN ('owner','editor','viewer')");
+                        });
+                });
+
             modelBuilder.Entity("ZakiSocial.Core.Entities.MediaAsset", b =>
                 {
                     b.Property<Guid>("Id")
@@ -579,6 +643,57 @@ namespace ZakiSocial.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ZakiSocial.Core.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("token_hash");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid?>("WorkspaceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("workspace_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_refresh_tokens");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_refresh_tokens_token_hash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_refresh_tokens_user_id");
+
+                    b.HasIndex("WorkspaceId")
+                        .HasDatabaseName("ix_refresh_tokens_workspace_id");
+
+                    b.ToTable("refresh_tokens", (string)null);
+                });
+
             modelBuilder.Entity("ZakiSocial.Core.Entities.ResponderRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -846,6 +961,22 @@ namespace ZakiSocial.Data.Migrations
                         .HasConstraintName("fk_collected_data_workspaces_workspace_id");
                 });
 
+            modelBuilder.Entity("ZakiSocial.Core.Entities.Invitation", b =>
+                {
+                    b.HasOne("ZakiSocial.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("InvitedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_invitations_users_invited_by");
+
+                    b.HasOne("ZakiSocial.Core.Entities.Workspace", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_invitations_workspaces_workspace_id");
+                });
+
             modelBuilder.Entity("ZakiSocial.Core.Entities.MediaAsset", b =>
                 {
                     b.HasOne("ZakiSocial.Core.Entities.Workspace", null)
@@ -954,6 +1085,22 @@ namespace ZakiSocial.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_proxies_workspaces_workspace_id");
+                });
+
+            modelBuilder.Entity("ZakiSocial.Core.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("ZakiSocial.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_refresh_tokens_users_user_id");
+
+                    b.HasOne("ZakiSocial.Core.Entities.Workspace", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_refresh_tokens_workspaces_workspace_id");
                 });
 
             modelBuilder.Entity("ZakiSocial.Core.Entities.ResponderRule", b =>
