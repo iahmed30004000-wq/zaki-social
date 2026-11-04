@@ -5,6 +5,7 @@ using ZakiSocial.Infrastructure.Auth;
 
 namespace ZakiSocial.Api.Endpoints;
 
+public sealed record ImageRequest(string? Prompt, string? PromptName, Dictionary<string, string>? Variables, string? Size);
 public sealed record AiCompleteRequest(string Task, string Prompt, string? System, string? PreferProvider, bool Sensitive, bool Stream, int? MaxTokens);
 
 public static class AiEndpoints
@@ -41,6 +42,19 @@ public static class AiEndpoints
                 await http.Response.WriteAsync($"data: {piece.Replace("\n", "\\n")}\n\n", Encoding.UTF8, ct);
             await http.Response.WriteAsync("data: [DONE]\n\n", ct);
             return Results.Empty;
+        }).RequireAuthorization(AuthPolicies.Editor);
+
+        // توليد صورة: من وصف مباشر أو من برومبت بمركز البرومبتات. بتنزل بالمكتبة غير معتمدة لحد ما إنسان يعتمدها.
+        g.MapPost("/image", async (ImageRequest r, IAiRouter router, ZakiSocial.Infrastructure.Prompts.PromptService prompts,
+            ZakiSocial.Infrastructure.Media.MediaService media, CancellationToken ct) =>
+        {
+            var prompt = !string.IsNullOrWhiteSpace(r.PromptName)
+                ? await prompts.RenderByNameAsync(r.PromptName, r.Variables, ct)
+                : r.Prompt;
+            if (string.IsNullOrWhiteSpace(prompt)) return Results.BadRequest(new { error = "prompt_required" });
+            var size = r.Size is "1024x1536" or "1536x1024" ? r.Size : "1024x1024";
+            var image = await router.GenerateImageAsync(prompt, size, ct);
+            return Results.Ok(await media.AddGeneratedAsync(image.Bytes, image.MimeType, prompt, ct));
         }).RequireAuthorization(AuthPolicies.Editor);
 
         g.MapGet("/usage", async (AiRouter router, CancellationToken ct) => Results.Ok(await router.UsageThisMonthAsync(ct)))

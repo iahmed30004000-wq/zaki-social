@@ -30,6 +30,8 @@ export default function MediaPage() {
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
@@ -66,6 +68,21 @@ export default function MediaPage() {
     }
   }
 
+  async function generate() {
+    setError("");
+    setGenerating(true);
+    try {
+      await api("/api/ai/image", { method: "POST", body: { prompt: imagePrompt } });
+      setImagePrompt("");
+      await load();
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      setError(code === "image_not_configured" ? "توليد الصور مش مفعّل: أضف مفتاح OpenAI ونموذج صور بإعدادات السيرفر" : code === "ai_quota_exceeded" ? "وصلت حد الاستهلاك الشهري" : errorText(e));
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function remove(m: Media) {
     if (!window.confirm(`حذف «${m.originalName}»؟`)) return;
     try {
@@ -97,6 +114,17 @@ export default function MediaPage() {
           </>
         )}
       </header>
+      {canEdit && (
+        <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-3">
+          <input
+            className="h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+            placeholder="صف الصورة اللي بدك الذكاء الاصطناعي يولّدها..."
+            value={imagePrompt}
+            onChange={(e) => setImagePrompt(e.target.value)}
+          />
+          <Button variant="outline" disabled={generating || !imagePrompt.trim()} onClick={generate}>{generating ? "جاري التوليد..." : "ولّد صورة بالذكاء الاصطناعي"}</Button>
+        </div>
+      )}
       {error && <p role="alert" className="text-sm text-warn">{error}</p>}
       {items.length === 0 && <p className="text-muted-foreground">المكتبة فاضية.</p>}
 

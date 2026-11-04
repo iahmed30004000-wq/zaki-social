@@ -12,16 +12,39 @@ public sealed class ProviderOptions
     public string ApiKey { get; set; } = "";
     public string BaseUrl { get; set; } = "";
     public string Model { get; set; } = "";
+    /// <summary>نموذج توليد الصور (اختياري). بدونه المزوّد ما بيولّد صور.</summary>
+    public string ImageModel { get; set; } = "";
 }
 
 /// <summary>أي خادم بواجهة OpenAI (chat/completions): أوبن إيه آي نفسه أو نموذج داخلي (Ollama, vLLM...).</summary>
-public abstract class OpenAiCompatibleProvider(HttpClient http, string name, IOptions<ProviderOptions> options, bool needsKey, bool vision) : IAiProvider
+public abstract class OpenAiCompatibleProvider(HttpClient http, string name, IOptions<ProviderOptions> options, bool needsKey, bool vision) : IAiProvider, IImageProvider
 {
     protected ProviderOptions Opt => options.Value;
 
     public string Name => name;
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Opt.BaseUrl) && !string.IsNullOrWhiteSpace(Opt.Model) && (!needsKey || !string.IsNullOrWhiteSpace(Opt.ApiKey));
     public AiCapabilities Capabilities => new(true, vision, true);
+
+    public bool ImageConfigured => !string.IsNullOrWhiteSpace(Opt.BaseUrl) && !string.IsNullOrWhiteSpace(Opt.ImageModel) && (!needsKey || !string.IsNullOrWhiteSpace(Opt.ApiKey));
+
+    /// <summary>POST /images/generations. بيقبل b64_json أو رابط (بينزّل الصورة).</summary>
+    public async Task<ImageResult> GenerateImageAsync(string prompt, string size, CancellationToken ct)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Post, $"{Opt.BaseUrl.TrimEnd('/')}/images/generations")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new { model = Opt.ImageModel, prompt, size, n = 1 }), Encoding.UTF8, "application/json"),
+        };
+        if (!string.IsNullOrWhiteSpace(Opt.ApiKey)) message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Opt.ApiKey);
+        using var response = await http.SendAsync(message, ct);
+        if (!response.IsSuccessStatusCode) throw new AiProviderException(Name, (int)response.StatusCode, $"{Name}_image_http_{(int)response.StatusCode}");
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+        var item = doc.RootElement.GetProperty("data")[0];
+        byte[] bytes;
+        if (item.TryGetProperty("b64_json", out var b64) && b64.GetString() is { Length: > 0 } text) bytes = Convert.FromBase64String(text);
+        else if (item.TryGetProperty("url", out var url) && url.GetString() is { Length: > 0 } address) bytes = await http.GetByteArrayAsync(address, ct);
+        else throw new AiProviderException(Name, 502, $"{Name}_image_empty");
+        return new ImageResult(bytes, "image/png", Name, Opt.ImageModel);
+    }
 
     public async Task<AiResult> CompleteAsync(AiRequest request, CancellationToken ct)
     {
