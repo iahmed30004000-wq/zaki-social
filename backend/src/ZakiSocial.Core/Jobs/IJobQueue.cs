@@ -10,4 +10,10 @@ public interface IJobQueue
 
     /// <summary>معالجة وسيط مرفوع (FFmpeg) بالخلفية.</summary>
     void EnqueueMedia(Guid workspaceId, Guid mediaId);
+
+    /// <summary>جمع مقاييس وتعليقات فوراً (مساحة وحدة، أو كل المساحات لو null).</summary>
+    void EnqueueCollect(Guid? workspaceId);
+
+    /// <summary>إرسال رد مجدول على تعليق بعد تأخير.</summary>
+    void EnqueueReply(Guid workspaceId, Guid markerId, TimeSpan delay);
 }

@@ -30,7 +30,7 @@ public static class IntegrationsSetup
     public static IServiceCollection AddZakiIntegrations(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<FacebookOptions>(configuration.GetSection("Facebook"));
-        services.AddHttpClient<FacebookConnector>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddHttpClient<FacebookConnector>(c => c.Timeout = TimeSpan.FromMinutes(5)).AddHttpMessageHandler<ProxyRoutingHandler>();
         services.AddTransient<IPlatformConnector>(sp => sp.GetRequiredService<FacebookConnector>());
         AddConnector<InstagramConnector>(services, TimeSpan.FromMinutes(5));
         services.Configure<TikTokOptions>(configuration.GetSection("TikTok"));
@@ -41,6 +41,7 @@ public static class IntegrationsSetup
         AddConnector<YouTubeConnector>(services, TimeSpan.FromMinutes(15));
         services.Configure<LinkedInOptions>(configuration.GetSection("LinkedIn"));
         AddConnector<LinkedInConnector>(services, TimeSpan.FromMinutes(5));
+        services.AddTransient<ProxyRoutingHandler>();
         services.AddTransient<IConnectorRegistry, ConnectorRegistry>();
 
         // الذكاء الاصطناعي: مفاتيح ونماذج من البيئة (Ai__Claude__ApiKey ...). إعادة محاولة وحد زمني بـ Polly.
@@ -56,7 +57,7 @@ public static class IntegrationsSetup
 
     private static void AddConnector<T>(IServiceCollection services, TimeSpan timeout) where T : class, IPlatformConnector
     {
-        services.AddHttpClient<T>(c => c.Timeout = timeout);
+        services.AddHttpClient<T>(c => c.Timeout = timeout).AddHttpMessageHandler<ProxyRoutingHandler>();
         services.AddTransient<IPlatformConnector>(sp => sp.GetRequiredService<T>());
     }
 

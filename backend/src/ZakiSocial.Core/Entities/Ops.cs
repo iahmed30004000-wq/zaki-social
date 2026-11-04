@@ -18,6 +18,8 @@ public class CollectedItem : IHasId, ITenantOwned
     public Guid WorkspaceId { get; set; }
     public Guid? AccountId { get; set; }
     public string Kind { get; set; } = "";
+    /// <summary>معرّف من المنصة (منصة:رقم) لمنع تكرار نفس التعليق أو الرد. فريد لكل (مساحة، نوع).</summary>
+    public string? ExternalId { get; set; }
     public string Data { get; set; } = "{}";
     public DateTimeOffset CollectedAt { get; set; }
 }

@@ -190,6 +190,7 @@ internal static class ModelConfiguration
             e.Property(x => x.CollectedAt).HasDefaultValueSql(Now);
             e.HasOne<SocialAccount>().WithMany().HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(x => new { x.WorkspaceId, x.Kind, x.CollectedAt });
+            e.HasIndex(x => new { x.WorkspaceId, x.Kind, x.ExternalId }).IsUnique().HasFilter("external_id IS NOT NULL");
         });
 
         b.Entity<AiUsage>(e =>

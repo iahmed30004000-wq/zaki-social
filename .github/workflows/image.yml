@@ -119,7 +119,8 @@ jobs:
       - name: خادم المنصات التجريبي (بدل فيسبوك الحقيقي)
         run: |
           nohup python3 scripts/fake_platforms.py 9090 > /tmp/fake_platforms.log 2>&1 &
-          for _ in $(seq 1 20); do curl -fsS http://127.0.0.1:9090/__requests > /dev/null && break; sleep 0.5; done
+          nohup python3 scripts/fake_platforms.py 9091 > /tmp/fake_proxy.log 2>&1 &
+          for _ in $(seq 1 20); do curl -fsS http://127.0.0.1:9090/__requests > /dev/null && curl -fsS http://127.0.0.1:9091/__requests > /dev/null && break; sleep 0.5; done
 
       - name: تشغيل الاثنين والتأكد إنهم سليمين
         run: |
@@ -131,7 +132,7 @@ jobs:
             -e 'Jwt__Key=ci-only-signing-key-not-used-anywhere-0123456789' \
             -e 'Encryption__Key=ci-only-encryption-key-not-used-anywhere-0123456789' \
             -e 'App__PublicUrl=http://127.0.0.1:8080' \
-            -e 'Workers__RetryDelaysSeconds=1,1' \
+            -e 'Workers__RetryDelaysSeconds=1,1' -e 'Proxies__AllowPrivateHosts=true' \
             -e 'Storage__Endpoint=http://127.0.0.1:9000' -e 'Storage__AccessKey=ci-minio' -e 'Storage__SecretKey=ci-minio-password-not-used' -e 'Storage__Bucket=zaki-media' \
             -e 'Ai__Claude__ApiKey=ci-claude-key' -e 'Ai__Claude__Model=claude-ci' -e 'Ai__Claude__BaseUrl=http://127.0.0.1:9090/claude' \
             -e 'Ai__OpenAi__ApiKey=ci-openai-key' -e 'Ai__OpenAi__Model=gpt-ci' -e 'Ai__OpenAi__ImageModel=img-ci' -e 'Ai__OpenAi__BaseUrl=http://127.0.0.1:9090/openai' \
@@ -192,6 +193,9 @@ jobs:
 
       - name: بقية المنصات (إنستغرام، تيك توك، إكس، يوتيوب، لينكدإن)
         run: bash scripts/ci-platforms-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
+
+      - name: الأتمتة (جامع، مجيب آلي، نسخ منشور، بروكسي ثابت) والتحليلات
+        run: bash scripts/ci-automation-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090 http://127.0.0.1:9091
 
       - name: ربط فيسبوك وتشفير التوكنات (مع خادم تجريبي)
         env:

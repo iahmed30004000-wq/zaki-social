@@ -49,5 +49,6 @@ app.MapPostEndpoints();
 app.MapAiEndpoints();
 app.MapPromptEndpoints();
 app.MapMediaEndpoints();
+app.MapAutomationEndpoints();
 
 app.Run();

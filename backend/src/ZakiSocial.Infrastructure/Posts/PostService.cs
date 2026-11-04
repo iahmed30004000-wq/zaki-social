@@ -70,6 +70,44 @@ public sealed class PostService(AppDbContext db, ITenantContext tenant, IJobQueu
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// ينسخ منشور (النص والوسائط) لعدة حسابات، كل نسخة بحساب ومجدولة بفاصل عشوائي بين min و max ثانية عن اللي قبلها
+    /// (نشر طبيعي متباعد). منشور الذكاء الاصطناعي لازم يكون معتمداً.
+    /// </summary>
+    public async Task<IReadOnlyList<PostDto>> ReplicateAsync(Guid id, IReadOnlyList<Guid> accountIds, int minGapSeconds, int maxGapSeconds, CancellationToken ct)
+    {
+        var source = await FindAsync(id, ct);
+        if (source.Status == PostStatus.Publishing) throw new AuthException(409, "post_not_replicable");
+        if (source.AiGenerated && source.ApprovedAt is null) throw new AuthException(409, "approval_required");
+        var ids = accountIds.Distinct().ToList();
+        if (ids.Count == 0 || ids.Count > 20) throw new AuthException(400, "targets_invalid");
+        if (minGapSeconds < 5 || maxGapSeconds < minGapSeconds || maxGapSeconds > 86400) throw new AuthException(400, "gap_invalid");
+        var valid = await db.SocialAccounts.Where(a => a.WorkspaceId == Workspace && ids.Contains(a.Id)).Select(a => a.Id).ToListAsync(ct);
+        if (valid.Count != ids.Count) throw new AuthException(400, "account_invalid");
+
+        var mediaIds = await db.PostMedia.Where(m => m.PostId == id).OrderBy(m => m.SortOrder).Select(m => m.MediaId).ToListAsync(ct);
+        var when = DateTimeOffset.UtcNow.AddSeconds(30);
+        var created = new List<Guid>();
+        foreach (var accountId in ids)
+        {
+            var copy = new Post
+            {
+                Id = Guid.NewGuid(), WorkspaceId = Workspace, Body = source.Body, AiGenerated = source.AiGenerated, ApprovedAt = source.ApprovedAt, ApprovedBy = source.ApprovedBy,
+                Status = PostStatus.Scheduled, ScheduledAt = when, CreatedBy = source.CreatedBy, CreatedAt = DateTimeOffset.UtcNow,
+            };
+            db.Posts.Add(copy);
+            db.PostTargets.Add(new PostTarget { Id = Guid.NewGuid(), WorkspaceId = Workspace, PostId = copy.Id, AccountId = accountId, Status = "pending" });
+            var order = 0;
+            foreach (var mediaId in mediaIds) db.PostMedia.Add(new PostMedia { PostId = copy.Id, MediaId = mediaId, WorkspaceId = Workspace, SortOrder = order++ });
+            created.Add(copy.Id);
+            when = when.AddSeconds(Random.Shared.Next(minGapSeconds, maxGapSeconds + 1));
+        }
+        await db.SaveChangesAsync(ct);
+        var result = new List<PostDto>();
+        foreach (var copyId in created) result.Add(await GetAsync(copyId, ct));
+        return result;
+    }
+
     /// <summary>اعتماد بشري لمنشور مولّد بالذكاء الاصطناعي. بيلغي أي تعديل لاحق على النص.</summary>
     public async Task<PostDto> ApproveAsync(Guid id, Guid userId, CancellationToken ct)
     {

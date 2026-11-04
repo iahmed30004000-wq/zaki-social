@@ -16,6 +16,12 @@ public sealed class HangfireJobQueue(IBackgroundJobClient client) : IJobQueue
             client.Enqueue<PublishJob>(j => j.RunAsync(workspaceId, targetId, attempt, CancellationToken.None));
     }
 
+    public void EnqueueCollect(Guid? workspaceId) =>
+        client.Enqueue<CollectorJob>(j => j.RunAsync(workspaceId, CancellationToken.None));
+
+    public void EnqueueReply(Guid workspaceId, Guid markerId, TimeSpan delay) =>
+        client.Schedule<ReplyJob>(j => j.RunAsync(workspaceId, markerId, CancellationToken.None), delay);
+
     public void EnqueueMedia(Guid workspaceId, Guid mediaId) =>
         client.Enqueue<ZakiSocial.Workers.Media.MediaJob>(j => j.RunAsync(workspaceId, mediaId, CancellationToken.None));
 }
@@ -43,6 +49,11 @@ public static class WorkersSetup
 
         services.AddScoped<PublishJob>();
         services.AddScoped<SchedulerJob>();
+        services.AddScoped<AccountSession>();
+        services.AddScoped<CollectorJob>();
+        services.AddScoped<ResponderJob>();
+        services.AddScoped<ReplyJob>();
+        services.AddScoped<ProxyHealthJob>();
         services.AddScoped<ZakiSocial.Workers.Media.MediaJob>();
         services.AddSingleton<ZakiSocial.Workers.Media.FfmpegProcessor>();
         services.AddSingleton<IJobQueue, HangfireJobQueue>();
