@@ -60,10 +60,12 @@ docker logs backend > /tmp/backend.log 2>&1
 grep -q '"Category":"http"' /tmp/backend.log || fail "structured http request logs expected"
 [ "$(grep -c '"Category":"http"' /tmp/backend.log)" -gt 50 ] || fail "request log must cover the traffic"
 SECRETS='PAGETOKEN_|LONG_USER_TOKEN|SHORT_USER_TOKEN|TT_ACCESS|TT_REFRESH|X_ACCESS|X_REFRESH|YT_ACCESS|YT_REFRESH|LI_ACCESS|ci-only-signing-key|ci-only-encryption-key|ci-app-secret|ci-claude-key|ci-openai-key|correct-horse|smoke-test-password|ci-minio-password|ci-tt-secret|ci-x-secret|ci-yt-secret|ci-li-secret|p@ss|good-code'
-if grep -E "$SECRETS" /tmp/backend.log | head -3; then fail "a secret appeared in the backend logs"; fi
+FOUND=$(grep -oE "$SECRETS" /tmp/backend.log | sort | uniq -c || true)
+[ -z "$FOUND" ] || { echo "$FOUND"; fail "a secret appeared in the backend logs"; }
 grep -E '"Path":|http (GET|POST)' /tmp/backend.log | grep -q '?code=' && fail "query strings (oauth codes) must not be logged"
 docker logs frontend > /tmp/frontend.log 2>&1
-if grep -E "$SECRETS" /tmp/frontend.log | head -3; then fail "a secret appeared in the frontend logs"; fi
+FOUND=$(grep -oE "$SECRETS" /tmp/frontend.log | sort | uniq -c || true)
+[ -z "$FOUND" ] || { echo "$FOUND"; fail "a secret appeared in the frontend logs"; }
 
 echo "-- نسخ احتياطي واستعادة فعلية (نفس أوامر خدمة backup)"
 TMP=$(mktemp -d)
