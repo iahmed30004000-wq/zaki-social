@@ -25,11 +25,13 @@ for path in /api/me /api/accounts /api/accounts/platforms /api/posts /api/media 
   code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE$path")
   [ "$code" = 401 ] || fail "$path must require login (got $code)"
 done
-for spec in "POST /api/posts" "PUT /api/posts/00000000-0000-0000-0000-000000000000" "DELETE /api/posts/00000000-0000-0000-0000-000000000000" "POST /api/media" "POST /api/ai/complete" "POST /api/proxies" "PUT /api/automation/rules/00000000-0000-0000-0000-000000000000"; do
+for spec in "POST /api/posts" "PUT /api/posts/00000000-0000-0000-0000-000000000000" "DELETE /api/posts/00000000-0000-0000-0000-000000000000" "POST /api/ai/complete" "POST /api/proxies" "PUT /api/automation/rules/00000000-0000-0000-0000-000000000000"; do
   method=${spec%% *}; path=${spec#* }
   code=$(curl -s -o /dev/null -w "%{http_code}" -X "$method" "$BASE$path" -H 'Content-Type: application/json' -d '{}')
   [ "$code" = 401 ] || fail "$method $path must require login (got $code)"
 done
+code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/media" -F "file=@/etc/hostname;type=image/png")
+[ "$code" = 401 ] || fail "uploading without login must be refused (got $code)"
 docker logs backend 2>&1 | grep -q "ENDPOINT AUDIT OK" || fail "the endpoint audit did not pass at startup"
 
 echo "-- حدّ محاولات الدخول لكل إيميل (تخمين)"
