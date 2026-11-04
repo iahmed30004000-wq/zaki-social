@@ -21,12 +21,16 @@ public sealed class WorkspaceService(AppDbContext db, ITenantContext tenant)
     private Guid CurrentWorkspace =>
         tenant.WorkspaceId ?? throw new AuthException(403, "no_workspace");
 
-    public async Task<IReadOnlyList<MemberDto>> MembersAsync(CancellationToken ct) =>
-        await (from m in db.Memberships
-               join u in db.Users on m.UserId equals u.Id
-               where m.WorkspaceId == CurrentWorkspace
-               orderby u.Email
-               select new MemberDto(u.Id, u.Email, m.Role, u.ManagedByWorkspaceId == CurrentWorkspace)).ToListAsync(ct);
+    public async Task<IReadOnlyList<MemberDto>> MembersAsync(CancellationToken ct)
+    {
+        var workspaceId = CurrentWorkspace; // متغير محلي: EF ما بيترجم خاصية الخدمة جوا الاستعلام
+        var rows = await (from m in db.Memberships
+                          join u in db.Users on m.UserId equals u.Id
+                          where m.WorkspaceId == workspaceId
+                          orderby u.Email
+                          select new { u.Id, u.Email, m.Role, u.ManagedByWorkspaceId }).ToListAsync(ct);
+        return rows.Select(r => new MemberDto(r.Id, r.Email, r.Role, r.ManagedByWorkspaceId == workspaceId)).ToList();
+    }
 
     public async Task<IReadOnlyList<InvitationDto>> PendingInvitationsAsync(CancellationToken ct) =>
         await db.Invitations
