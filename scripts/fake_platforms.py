@@ -25,7 +25,7 @@ class Handler(BaseHTTPRequestHandler):
         ctype = self.headers.get("Content-Type", "")
         if "multipart" in ctype:
             import re
-            fields = dict(re.findall(r'name="([^"]+)"\r\n\r\n([^\r]*)\r\n', data.decode("latin1")))
+            fields = dict(re.findall(r'name="?([^";\r\n]+)"?[^\r\n]*\r\n(?:[A-Za-z-]+:[^\r\n]*\r\n)*\r\n([^\r]*)\r\n', data.decode("utf-8", "replace")))
             return {"_multipart": True, "size": n, **fields}
         raw = data.decode()
         if "json" in ctype and raw:
