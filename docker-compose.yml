@@ -56,6 +56,10 @@ services:
       Redis__ConnectionString: redis:6379
       Database__AutoMigrate: "true"
       Jwt__Key: ${JWT_KEY:-zaki-local-dev-only-signing-key-0123456789abcdef}
+      Encryption__Key: ${ENCRYPTION_KEY:-zaki-local-dev-only-encryption-key-0123456789abcdef}
+      App__PublicUrl: ${APP_PUBLIC_URL:-https://localhost}
+      Facebook__AppId: ${FACEBOOK_APP_ID:-}
+      Facebook__AppSecret: ${FACEBOOK_APP_SECRET:-}
 
   frontend:
     build: ./frontend

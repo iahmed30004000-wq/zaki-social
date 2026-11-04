@@ -111,6 +111,11 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,scope=frontend,mode=max
 
+      - name: خادم المنصات التجريبي (بدل فيسبوك الحقيقي)
+        run: |
+          nohup python3 scripts/fake_platforms.py 9090 > /tmp/fake_platforms.log 2>&1 &
+          for _ in $(seq 1 20); do curl -fsS http://127.0.0.1:9090/__requests > /dev/null && break; sleep 0.5; done
+
       - name: تشغيل الاثنين والتأكد إنهم سليمين
         run: |
           set -eu
@@ -119,6 +124,12 @@ jobs:
             -e 'Redis__ConnectionString=127.0.0.1:6379' \
             -e 'Database__AutoMigrate=true' \
             -e 'Jwt__Key=ci-only-signing-key-not-used-anywhere-0123456789' \
+            -e 'Encryption__Key=ci-only-encryption-key-not-used-anywhere-0123456789' \
+            -e 'App__PublicUrl=http://127.0.0.1:8080' \
+            -e 'Facebook__AppId=ci-app-id' \
+            -e 'Facebook__AppSecret=ci-app-secret' \
+            -e 'Facebook__GraphBase=http://127.0.0.1:9090' \
+            -e 'Facebook__DialogBase=https://facebook.test/dialog/oauth' \
             -e 'ASPNETCORE_URLS=http://+:8080' \
             zaki-backend:smoke
           docker run -d --name frontend --network host zaki-frontend:smoke
@@ -145,6 +156,11 @@ jobs:
 
           page=$(curl -fsS http://127.0.0.1:3000/)
           echo "$page" | grep -q 'dir="rtl"' || { echo "::error::landing page is not RTL"; exit 1; }
+
+      - name: ربط فيسبوك وتشفير التوكنات (مع خادم تجريبي)
+        env:
+          PGHOST: 127.0.0.1
+        run: bash scripts/ci-accounts-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 
       - name: الدخول والصلاحيات وعزل المساحات (تسجيل حقيقي عبر الخادم)
         run: bash scripts/ci-auth-check.sh http://127.0.0.1:8080

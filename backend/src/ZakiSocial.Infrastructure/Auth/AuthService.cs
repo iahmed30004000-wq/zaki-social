@@ -127,6 +127,16 @@ public sealed class AuthService(
         }
     }
 
+    /// <summary>دور المستخدم بمساحة معينة من قاعدة البيانات (null لو مش عضو). للمسارات اللي ما فيها توكن دخول.</summary>
+    public async Task<string?> MemberRoleAsync(Guid userId, Guid workspaceId, CancellationToken ct)
+    {
+        tenant.UseSystem();
+        return await db.Memberships
+            .Where(m => m.UserId == userId && m.WorkspaceId == workspaceId)
+            .Select(m => m.Role)
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<AuthResult> SwitchWorkspaceAsync(Guid userId, Guid workspaceId, string? currentRefresh, CancellationToken ct)
     {
         tenant.UseSystem();

@@ -30,6 +30,7 @@ public static class AuthSetup
         var options = new JwtOptions();
         configuration.GetSection("Jwt").Bind(options);
         options.Validate();
+        _ = new ZakiSocial.Infrastructure.Security.TokenCryptor(configuration); // يفشل بالإقلاع لو مفتاح التشفير ناقص
         services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -55,6 +56,9 @@ public static class AuthSetup
             auth.AddPolicy(AuthPolicies.Owner, p => p.RequireAuthenticatedUser().RequireAssertion(c => HasRole(c, Roles.Owner)));
         });
 
+        services.AddSingleton<ZakiSocial.Infrastructure.Security.TokenCryptor>();
+        services.AddSingleton<OAuthStateService>();
+        services.AddScoped<AccountService>();
         services.AddScoped<JwtService>();
         services.AddScoped<AuthService>();
         services.AddScoped<WorkspaceService>();
