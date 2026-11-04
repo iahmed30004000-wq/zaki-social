@@ -31,7 +31,8 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    # صورة minio/minio الرسمية انسحبت من دوكر هب، فهي بديل مفتوح ومتوافق
+    image: chainguard/minio:latest
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
