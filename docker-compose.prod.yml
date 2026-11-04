@@ -69,6 +69,9 @@ services:
       YouTube__ClientSecret: ${YOUTUBE_CLIENT_SECRET:-}
       LinkedIn__ClientId: ${LINKEDIN_CLIENT_ID:-}
       LinkedIn__ClientSecret: ${LINKEDIN_CLIENT_SECRET:-}
+      TikTok__PrivacyLevel: ${TIKTOK_PRIVACY_LEVEL:-SELF_ONLY}
+      YouTube__Privacy: ${YOUTUBE_PRIVACY:-public}
+      Ai__OpenAi__ImageModel: ${OPENAI_IMAGE_MODEL:-gpt-image-1}
       Ai__Claude__ApiKey: ${ANTHROPIC_API_KEY:-}
       Ai__Claude__Model: ${CLAUDE_MODEL:-claude-sonnet-5-5}
       Ai__OpenAi__ApiKey: ${OPENAI_API_KEY:-}
