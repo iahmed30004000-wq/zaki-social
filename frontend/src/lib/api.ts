@@ -4,6 +4,7 @@ export type Session = {
   user: { id: string; email: string };
   workspace: Workspace;
   workspaces: Workspace[];
+  mustChangePassword?: boolean;
 };
 
 // توكن الوصول بذاكرة الصفحة فقط (مش localStorage). توكن التجديد بكوكي httpOnly ما بنقدر نقراه من الجافاسكربت.
@@ -36,6 +37,9 @@ const messages: Record<string, string> = {
   name_required: "اكتب الاسم",
   not_found: "غير موجود",
   invalid_refresh: "انتهت الجلسة، سجّل الدخول من جديد",
+  password_same: "كلمة السر الجديدة لازم تختلف عن الحالية",
+  not_managed: "هذا الحساب مش من إنشائك، ما بتقدر تغيّر كلمة سره",
+  rate_limited: "محاولات كثيرة، استنى دقيقة وجرّب",
 };
 
 export function errorText(error: unknown): string {

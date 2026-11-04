@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, errorText } from "@/lib/api";
 
-type Member = { userId: string; email: string; role: string };
+type Member = { userId: string; email: string; role: string; managed: boolean };
+type Created = { email: string; tempPassword: string; resetFor?: boolean };
 type Invitation = { id: string; email: string; role: string; expiresAt: string };
 
 const roles = ["owner", "editor", "viewer"] as const;
@@ -20,6 +21,10 @@ export default function TeamPage() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>("viewer");
   const [link, setLink] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newRole, setNewRole] = useState<string>("editor");
+  const [newPassword, setNewPassword] = useState("");
+  const [created, setCreated] = useState<Created | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -42,6 +47,29 @@ export default function TeamPage() {
     } catch (e) {
       setError(errorText(e));
     }
+  }
+
+  async function createUser(e: React.FormEvent) {
+    e.preventDefault();
+    setCreated(null);
+    await run(async () => {
+      const r = await api<{ email: string; tempPassword: string }>("/api/workspace/members", {
+        method: "POST",
+        body: { email: newEmail, role: newRole, password: newPassword || undefined },
+      });
+      setCreated({ email: r.email, tempPassword: r.tempPassword });
+      setNewEmail("");
+      setNewPassword("");
+    });
+  }
+
+  async function resetPassword(m: Member) {
+    if (!window.confirm(`إعادة تعيين كلمة سر ${m.email}؟ بنسجّل خروجه من كل الأجهزة.`)) return;
+    setCreated(null);
+    await run(async () => {
+      const r = await api<{ tempPassword: string }>(`/api/workspace/members/${m.userId}/reset-password`, { method: "POST", body: {} });
+      setCreated({ email: m.email, tempPassword: r.tempPassword, resetFor: true });
+    });
   }
 
   async function invite(e: React.FormEvent) {
@@ -79,6 +107,11 @@ export default function TeamPage() {
                       <option key={r} value={r}>{roleLabel[r]}</option>
                     ))}
                   </select>
+                  {m.managed && (
+                    <Button variant="outline" size="sm" onClick={() => resetPassword(m)}>
+                      كلمة سر جديدة
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -97,7 +130,33 @@ export default function TeamPage() {
 
       {isOwner ? (
         <section className="space-y-3">
-          <h2 className="font-semibold">دعوة عضو</h2>
+          <h2 className="font-semibold">إنشاء مستخدم</h2>
+          <p className="text-sm text-muted-foreground">بتكتب الإيميل والدور، وبنعطيك كلمة سر مؤقتة (أو اكتب أنت وحدة). أول ما يدخل لازم يغيّرها.</p>
+          <form onSubmit={createUser} className="flex flex-wrap gap-2">
+            <Input className="max-w-xs" type="email" required dir="ltr" placeholder="email@example.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+            <select className="h-10 rounded-lg border border-border bg-background px-2 text-sm" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+              {roles.map((r) => (
+                <option key={r} value={r}>{roleLabel[r]}</option>
+              ))}
+            </select>
+            <Input className="max-w-48" dir="ltr" autoComplete="off" placeholder="كلمة سر (اختياري)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+            <Button type="submit">إنشاء</Button>
+          </form>
+          {created && (
+            <div className="space-y-1 rounded-xl border border-primary bg-card p-3 text-sm">
+              <p>{created.resetFor ? "كلمة السر الجديدة" : "انعمل المستخدم"} — سلّمها للشخص هلأ، ما رح تظهر مرة ثانية:</p>
+              <p dir="ltr" className="text-start">{created.email}</p>
+              <p dir="ltr" className="select-all text-start font-mono text-primary">{created.tempPassword}</p>
+            </div>
+          )}
+        </section>
+      ) : (
+        <p className="text-sm text-muted-foreground">الدعوات وتغيير الصلاحيات للمالك فقط.</p>
+      )}
+
+      {isOwner && (
+        <section className="space-y-3">
+          <h2 className="font-semibold">دعوة عضو (برابط، لشخص بيسجّل بنفسه)</h2>
           <form onSubmit={invite} className="flex flex-wrap gap-2">
             <Input className="max-w-xs" type="email" required dir="ltr" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             <select className="h-10 rounded-lg border border-border bg-background px-2 text-sm" value={role} onChange={(e) => setRole(e.target.value)}>
@@ -129,8 +188,6 @@ export default function TeamPage() {
             </ul>
           )}
         </section>
-      ) : (
-        <p className="text-sm text-muted-foreground">الدعوات وتغيير الصلاحيات للمالك فقط.</p>
       )}
     </div>
   );

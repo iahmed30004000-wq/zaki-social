@@ -6,6 +6,8 @@ namespace ZakiSocial.Api.Endpoints;
 
 public sealed record InviteRequest(string Email, string Role);
 public sealed record RoleRequest(string Role);
+public sealed record CreateUserRequest(string Email, string Role, string? Password);
+public sealed record ResetPasswordRequest(string? Password);
 
 public static class WorkspaceEndpoints
 {
@@ -35,6 +37,13 @@ public static class WorkspaceEndpoints
             await svc.RevokeInvitationAsync(id, ct);
             return Results.NoContent();
         }).RequireAuthorization(AuthPolicies.Owner);
+
+        // إنشاء مستخدم مباشرة (المالك بس): إيميل + دور، وكلمة السر المؤقتة بتنكتب أو بتتولّد وبتظهر مرة وحدة.
+        ws.MapPost("/members", async (CreateUserRequest r, UserAdminService users, CancellationToken ct) =>
+            Results.Ok(await users.CreateAsync(r.Email, r.Password, r.Role, ct))).RequireAuthorization(AuthPolicies.Owner);
+
+        ws.MapPost("/members/{userId:guid}/reset-password", async (Guid userId, ResetPasswordRequest r, UserAdminService users, CancellationToken ct) =>
+            Results.Ok(new { tempPassword = await users.ResetPasswordAsync(userId, r.Password, ct) })).RequireAuthorization(AuthPolicies.Owner);
 
         ws.MapPut("/members/{userId:guid}/role", async (Guid userId, RoleRequest r, WorkspaceService svc, CancellationToken ct) =>
         {

@@ -18,7 +18,8 @@ public sealed record AuthResult(
     Guid UserId,
     string Email,
     WorkspaceInfo CurrentWorkspace,
-    IReadOnlyList<WorkspaceInfo> Workspaces);
+    IReadOnlyList<WorkspaceInfo> Workspaces,
+    bool MustChangePassword);
 
 /// <summary>خطأ متوقع (بيرجع للمستخدم برسالة وكود حالة)، مش عطل.</summary>
 public sealed class AuthException(int status, string code) : Exception(code)
@@ -99,6 +100,24 @@ public sealed class AuthService(
             user.PasswordHash = Hasher.HashPassword(user, password);
             await db.SaveChangesAsync(ct);
         }
+        return await IssueAsync(user, workspaceId, ct);
+    }
+
+    /// <summary>تغيير كلمة السر: بيتطلب الحالية، بيسجّل الخروج من كل الأجهزة، وبيرجّع جلسة جديدة.</summary>
+    public async Task<AuthResult> ChangePasswordAsync(Guid userId, Guid? workspaceId, string current, string next, CancellationToken ct)
+    {
+        tenant.UseSystem();
+        var user = await db.Users.FirstAsync(u => u.Id == userId, ct);
+        await throttle.CheckAsync(user.Email); // نفس حماية التخمين
+        if (Hasher.VerifyHashedPassword(user, user.PasswordHash, current ?? "") == PasswordVerificationResult.Failed)
+            throw new AuthException(401, "invalid_credentials");
+        if ((next ?? "").Length < MinPasswordLength) throw new AuthException(400, "password_too_short");
+        if (next == current) throw new AuthException(400, "password_same");
+        user.PasswordHash = Hasher.HashPassword(user, next);
+        user.MustChangePassword = false;
+        var now = DateTimeOffset.UtcNow;
+        foreach (var t in await db.RefreshTokens.Where(t => t.UserId == userId && t.RevokedAt == null).ToListAsync(ct)) t.RevokedAt = now;
+        await db.SaveChangesAsync(ct);
         return await IssueAsync(user, workspaceId, ct);
     }
 
@@ -190,7 +209,7 @@ public sealed class AuthService(
             CreatedAt = DateTimeOffset.UtcNow,
         });
         await db.SaveChangesAsync(ct);
-        return new AuthResult(access, raw, expires, user.Id, user.Email, current, memberships);
+        return new AuthResult(access, raw, expires, user.Id, user.Email, current, memberships, user.MustChangePassword);
     }
 
     public static string Hash(string value) =>

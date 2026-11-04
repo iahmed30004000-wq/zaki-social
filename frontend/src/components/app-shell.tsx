@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { roleLabel, useAuth } from "@/components/auth-provider";
+import { ChangePasswordForm } from "@/components/change-password-form";
 import { Button } from "@/components/ui/button";
 import { errorText } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -19,7 +20,7 @@ export const modules = [
   { href: "/app/analytics", label: "التحليلات", ready: true },
   { href: "/app/media", label: "مكتبة الوسائط", ready: true },
   { href: "/app/team", label: "الفريق والصلاحيات", ready: true },
-  { href: "/app/settings", label: "الإعدادات", step: 15 },
+  { href: "/app/settings", label: "الإعدادات", ready: true },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (status !== "authed" || !session) {
     return <p className="p-8 text-center text-muted-foreground">جاري التحميل...</p>;
+  }
+
+  // كلمة سر مؤقتة حطها المالك: ما بنفتح أي شي قبل ما يغيّرها.
+  if (session.mustChangePassword) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-4 py-12">
+        <h1 className="text-2xl font-bold">غيّر كلمة السر</h1>
+        <p className="text-sm text-muted-foreground">دخلت بكلمة سر مؤقتة من مالك المساحة. اختار كلمة سر خاصة فيك لتكمّل.</p>
+        <ChangePasswordForm />
+        <Button variant="outline" size="sm" onClick={() => logout().then(() => router.replace("/login"))}>تسجيل الخروج</Button>
+      </main>
+    );
   }
 
   async function onSwitch(id: string) {

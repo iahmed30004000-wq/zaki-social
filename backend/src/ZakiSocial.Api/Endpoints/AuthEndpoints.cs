@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using ZakiSocial.Core.Tenancy;
 using ZakiSocial.Infrastructure.Auth;
 
 namespace ZakiSocial.Api.Endpoints;
@@ -8,6 +9,7 @@ public sealed record RegisterRequest(string Email, string Password, string? Work
 public sealed record LoginRequest(string Email, string Password, Guid? WorkspaceId);
 public sealed record SwitchRequest(Guid WorkspaceId);
 public sealed record CreateWorkspaceRequest(string Name);
+public sealed record ChangePasswordRequest(string Current, string Next);
 
 public static class AuthEndpoints
 {
@@ -37,6 +39,13 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
+        auth.MapPost("/change-password", async (ChangePasswordRequest r, AuthService svc, HttpContext http, ClaimsPrincipal user, ITenantContext tenant, CancellationToken ct) =>
+        {
+            var userId = UserId(user);
+            var workspaceId = tenant.WorkspaceId; // قبل ما الخدمة تحوّل لوضع النظام
+            return Respond(http, await svc.ChangePasswordAsync(userId, workspaceId, r.Current, r.Next, ct));
+        }).RequireAuthorization(AuthPolicies.Member);
+
         auth.MapPost("/switch-workspace", async (SwitchRequest r, AuthService svc, HttpContext http, ClaimsPrincipal user, CancellationToken ct) =>
             Respond(http, await svc.SwitchWorkspaceAsync(UserId(user), r.WorkspaceId, http.Request.Cookies[RefreshCookie], ct)))
             .RequireAuthorization();
@@ -59,6 +68,7 @@ public static class AuthEndpoints
             user = new { id = result.UserId, email = result.Email },
             workspace = result.CurrentWorkspace,
             workspaces = result.Workspaces,
+            mustChangePassword = result.MustChangePassword,
         });
     }
 

@@ -213,6 +213,9 @@ jobs:
       - name: الدخول والصلاحيات وعزل المساحات (تسجيل حقيقي عبر الخادم)
         run: bash scripts/ci-auth-check.sh http://127.0.0.1:8080
 
+      - name: إنشاء المستخدمين من المالك وتغيير كلمة السر
+        run: bash scripts/ci-members-check.sh http://127.0.0.1:8080
+
       - name: الجداول وعزل المساحات (على قاعدة حقيقية)
         env:
           PGHOST: 127.0.0.1

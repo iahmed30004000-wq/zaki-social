@@ -6,7 +6,7 @@ using ZakiSocial.Data;
 
 namespace ZakiSocial.Infrastructure.Auth;
 
-public sealed record MemberDto(Guid UserId, string Email, string Role);
+public sealed record MemberDto(Guid UserId, string Email, string Role, bool Managed);
 public sealed record InvitationDto(Guid Id, string Email, string Role, DateTimeOffset ExpiresAt);
 public sealed record CreatedInvitation(Guid Id, string Email, string Role, DateTimeOffset ExpiresAt, string Code);
 
@@ -26,7 +26,7 @@ public sealed class WorkspaceService(AppDbContext db, ITenantContext tenant)
                join u in db.Users on m.UserId equals u.Id
                where m.WorkspaceId == CurrentWorkspace
                orderby u.Email
-               select new MemberDto(u.Id, u.Email, m.Role)).ToListAsync(ct);
+               select new MemberDto(u.Id, u.Email, m.Role, u.ManagedByWorkspaceId == CurrentWorkspace)).ToListAsync(ct);
 
     public async Task<IReadOnlyList<InvitationDto>> PendingInvitationsAsync(CancellationToken ct) =>
         await db.Invitations

@@ -28,6 +28,7 @@ internal static class ModelConfiguration
             e.Property(x => x.Email).IsRequired();
             e.Property(x => x.PasswordHash).IsRequired();
             e.Property(x => x.CreatedAt).HasDefaultValueSql(Now);
+            e.Property(x => x.MustChangePassword).HasDefaultValue(false);
             e.HasIndex(x => x.Email).IsUnique();
         });
 

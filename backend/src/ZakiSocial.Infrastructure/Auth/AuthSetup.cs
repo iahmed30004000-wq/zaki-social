@@ -61,6 +61,7 @@ public static class AuthSetup
         services.AddScoped<AccountService>();
         services.AddScoped<JwtService>();
         services.AddScoped<AuthService>();
+        services.AddScoped<UserAdminService>();
         services.AddScoped<WorkspaceService>();
         return services;
     }
