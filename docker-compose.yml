@@ -85,6 +85,37 @@ services:
       Storage__SecretKey: ${MINIO_ROOT_PASSWORD:-zaki_minio_local_dev_only}
       Storage__Bucket: zaki-media
 
+  # نسخ احتياطي يومي: القاعدة (pg_dump) وملفات الوسائط (tar). الاحتفاظ بآخر 14 يوم للقاعدة و7 للوسائط.
+  # النسخ على وحدة التخزين backups بنفس السيرفر: انسخها لمكان تاني (راجع docs/DEPLOY_AR.md).
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: zaki
+      PGPASSWORD: ${POSTGRES_PASSWORD:-zaki_local_dev_only}
+      PGDATABASE: zaki_social
+      BACKUP_KEEP_DAYS: "14"
+    volumes:
+      - backups:/backups
+      - miniodata:/media:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        while true; do
+          d=$$(date -u +%Y%m%d-%H%M%S)
+          pg_dump -Fc -f /backups/db-$$d.dump
+          tar -czf /backups/media-$$d.tar.gz -C /media .
+          find /backups -name 'db-*.dump' -mtime +$$BACKUP_KEEP_DAYS -delete
+          find /backups -name 'media-*.tar.gz' -mtime +7 -delete
+          echo "backup done $$d"
+          sleep 86400
+        done
+
   frontend:
     build: ./frontend
     restart: unless-stopped
@@ -109,5 +140,6 @@ volumes:
   pgdata:
   redisdata:
   miniodata:
+  backups:
   caddy_data:
   caddy_config:

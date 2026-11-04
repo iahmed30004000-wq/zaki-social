@@ -50,6 +50,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: فحص الأسرار بالكود
+        run: |
+          if git grep -nE '(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|sk-[A-Za-z0-9]{32,}|-----BEGIN (RSA |EC )?PRIVATE KEY-----)' -- . ':!scripts/ci-security-check.sh'; then
+            echo '::error::secret-like value found in the repository'; exit 1
+          fi
+          echo 'no secrets in the code'
+
       - name: أسماء الصور
         id: image
         run: |
@@ -81,7 +88,8 @@ jobs:
           SERVICE_PASSWORD_MINIO: ci-not-a-secret
         run: |
           set -eu
-          for f in docker-compose.yml docker-compose.prod.yml; do
+          export GRAFANA_ADMIN_PASSWORD=ci-not-a-secret
+          for f in docker-compose.yml docker-compose.prod.yml deploy/monitoring/docker-compose.yml; do
             for img in $(docker compose -f "$f" config --images); do
               case "$img" in
                 ghcr.io/*|zaki-social-*) continue ;;
@@ -132,7 +140,7 @@ jobs:
             -e 'Jwt__Key=ci-only-signing-key-not-used-anywhere-0123456789' \
             -e 'Encryption__Key=ci-only-encryption-key-not-used-anywhere-0123456789' \
             -e 'App__PublicUrl=http://127.0.0.1:8080' \
-            -e 'Workers__RetryDelaysSeconds=1,1' -e 'Proxies__AllowPrivateHosts=true' \
+            -e 'Workers__RetryDelaysSeconds=1,1' -e 'Proxies__AllowPrivateHosts=true' -e 'Security__AuditEndpoints=true' -e 'RateLimit__AuthPerIpPerMinute=100000' \
             -e 'Storage__Endpoint=http://127.0.0.1:9000' -e 'Storage__AccessKey=ci-minio' -e 'Storage__SecretKey=ci-minio-password-not-used' -e 'Storage__Bucket=zaki-media' \
             -e 'Ai__Claude__ApiKey=ci-claude-key' -e 'Ai__Claude__Model=claude-ci' -e 'Ai__Claude__BaseUrl=http://127.0.0.1:9090/claude' \
             -e 'Ai__OpenAi__ApiKey=ci-openai-key' -e 'Ai__OpenAi__Model=gpt-ci' -e 'Ai__OpenAi__ImageModel=img-ci' -e 'Ai__OpenAi__BaseUrl=http://127.0.0.1:9090/openai' \
@@ -246,6 +254,9 @@ jobs:
 
           q -c "delete from workspaces where id in ('$A','$B')"
           echo "tables ok, row level security ok"
+
+      - name: الأمان (ترويسات، حدود الطلبات، تدقيق النقاط، نظافة السجلات، نسخ احتياطي واستعادة)
+        run: bash scripts/ci-security-check.sh http://127.0.0.1:8080 http://127.0.0.1:3000
 
       - name: إيقاف الحاويات
         if: always()

@@ -1,5 +1,12 @@
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
 localhost {
 	tls internal
+	header Strict-Transport-Security "max-age=31536000"
 
 	handle /api/* {
 		reverse_proxy backend:8080

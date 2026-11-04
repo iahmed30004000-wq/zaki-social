@@ -1,4 +1,5 @@
 using ZakiSocial.Api.Endpoints;
+using ZakiSocial.Api.Security;
 using ZakiSocial.Core.Health;
 using ZakiSocial.Infrastructure;
 using ZakiSocial.Infrastructure.Auth;
@@ -6,6 +7,9 @@ using ZakiSocial.Integrations;
 using ZakiSocial.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
+// سجلات JSON منظّمة (للمراقبة). الاستعلامات ما بتنسجّل لأن فيها أكواد OAuth.
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole(o => o.IncludeScopes = false);
 // رفع الوسائط: حد 320 ميغا بالطلب (الفيديو 300 ميغا كحد أقصى للملف)
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 320L * 1024 * 1024);
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o => o.MultipartBodyLengthLimit = 320L * 1024 * 1024);
@@ -15,6 +19,10 @@ builder.Services.AddZakiIntegrations(builder.Configuration);
 builder.Services.AddZakiWorkers(builder.Configuration);
 
 var app = builder.Build();
+
+app.UseForwarded();
+app.UseRequestLog();
+app.UseSecurityHeaders();
 
 await app.Services.MigrateDatabaseAsync(app.Configuration);
 
@@ -33,6 +41,7 @@ app.Use(async (http, next) =>
 });
 
 app.UseAuthentication();
+app.UseRateLimits();
 app.UseZakiTenant();
 app.UseAuthorization();
 
@@ -50,5 +59,7 @@ app.MapAiEndpoints();
 app.MapPromptEndpoints();
 app.MapMediaEndpoints();
 app.MapAutomationEndpoints();
+
+app.AuditEndpointsOnStart();
 
 app.Run();
