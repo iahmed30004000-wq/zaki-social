@@ -180,7 +180,7 @@ jobs:
       - name: الجدولة والتقويم وأفضل وقت
         run: bash scripts/ci-schedule-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 
-      - name: الوسائط: رفع، معالجة FFmpeg، نشر صور وفيديو
+      - name: الوسائط (رفع، معالجة FFmpeg، نشر صور وفيديو)
         run: bash scripts/ci-media-check.sh http://127.0.0.1:8080 http://127.0.0.1:9090
 
       - name: ربط فيسبوك وتشفير التوكنات (مع خادم تجريبي)
