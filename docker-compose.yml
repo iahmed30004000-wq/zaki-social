@@ -55,6 +55,7 @@ services:
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=zaki_social;Username=zaki;Password=${POSTGRES_PASSWORD:-zaki_local_dev_only};Timeout=3;Command Timeout=3
       Redis__ConnectionString: redis:6379
       Database__AutoMigrate: "true"
+      Jwt__Key: ${JWT_KEY:-zaki-local-dev-only-signing-key-0123456789abcdef}
 
   frontend:
     build: ./frontend

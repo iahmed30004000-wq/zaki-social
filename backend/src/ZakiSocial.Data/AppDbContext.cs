@@ -25,6 +25,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CollectedItem> CollectedData => Set<CollectedItem>();
     public DbSet<AppLog> AppLogs => Set<AppLog>();
     public DbSet<AppSetting> Settings => Set<AppSetting>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Invitation> Invitations => Set<Invitation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) => ModelConfiguration.Apply(modelBuilder);
 }

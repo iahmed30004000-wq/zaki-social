@@ -118,6 +118,7 @@ jobs:
             -e 'ConnectionStrings__Postgres=Host=127.0.0.1;Port=5432;Database=smoke;Username=smoke;Password=smoke-test-password-not-used-anywhere;Timeout=3;Command Timeout=3' \
             -e 'Redis__ConnectionString=127.0.0.1:6379' \
             -e 'Database__AutoMigrate=true' \
+            -e 'Jwt__Key=ci-only-signing-key-not-used-anywhere-0123456789' \
             -e 'ASPNETCORE_URLS=http://+:8080' \
             zaki-backend:smoke
           docker run -d --name frontend --network host zaki-frontend:smoke
@@ -145,6 +146,9 @@ jobs:
           page=$(curl -fsS http://127.0.0.1:3000/)
           echo "$page" | grep -q 'dir="rtl"' || { echo "::error::landing page is not RTL"; exit 1; }
 
+      - name: الدخول والصلاحيات وعزل المساحات (تسجيل حقيقي عبر الخادم)
+        run: bash scripts/ci-auth-check.sh http://127.0.0.1:8080
+
       - name: الجداول وعزل المساحات (على قاعدة حقيقية)
         env:
           PGHOST: 127.0.0.1
@@ -160,7 +164,7 @@ jobs:
           [ "$tables" = 15 ] || fail "expected 15 tables, found $tables"
 
           rls=$(q -c "select count(*) from pg_tables where schemaname='public' and rowsecurity and tablename <> '__EFMigrationsHistory'")
-          [ "$rls" = 14 ] || fail "expected row level security on 14 tables, found $rls"
+          [ "$rls" = 15 ] || fail "expected row level security on 15 tables, found $rls"
 
           tok=$(q -c "select count(*) from information_schema.columns where table_name='social_accounts' and column_name in ('enc_access_token','enc_refresh_token') and data_type='bytea'")
           [ "$tok" = 2 ] || fail "token columns must be bytea"
